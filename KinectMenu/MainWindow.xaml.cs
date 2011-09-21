@@ -3,6 +3,8 @@
 // Author: peggychi
 // Latest Update: 09/17/2011
 
+// this is a test for git
+
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
