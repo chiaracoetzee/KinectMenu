@@ -40,10 +40,10 @@ namespace KinectMenu
         int window_height = 0, window_width = 0;
 
         // for UI testing
-        Button[] main_button_list;
-        Button[] game_button_list;
-
-        Dictionary<Button, Location> original_locations = new Dictionary<Button,Location>();
+        Dictionary<Button, Location> original_location = new Dictionary<Button,Location>();
+        Dictionary<Button, Canvas> submenu_map = new Dictionary<Button, Canvas>();
+        Dictionary<Canvas, Canvas> parent_menu_map = new Dictionary<Canvas, Canvas>();
+        Canvas active_menu;
 
         public MainWindow()
         {
@@ -55,19 +55,48 @@ namespace KinectMenu
             this.Cursor = Cursors.Hand;
             
             // for UI testing
-            main_button_list = new Button[] { mainButton_Apps, mainButton_Games, mainButton_Movies, mainButton_Music, mainButton_Settings};
-            game_button_list = new Button[] { button_game_item0, button_game_item1, button_game_item2, button_game_item3 };
 
-            List<Button> all_buttons = new List<Button>(main_button_list);
-            all_buttons.AddRange(game_button_list);
-            all_buttons.Add(button_back);
-            foreach (Button button in all_buttons)
+            this.active_menu = RootMenu;
+            ButtonBack.Visibility = Visibility.Hidden;
+            ButtonSelected.Visibility = Visibility.Hidden;
+
+            // Build map of canvas name to canvas
+            Dictionary<string, Canvas> canvas_by_name = new Dictionary<string,Canvas>();
+            foreach (FrameworkElement element1 in LayoutRoot.Children)
             {
-                original_locations[button] = GetLocation(button);
-                button.Click += delegate(object sender, RoutedEventArgs e) { component_click(sender as Button); };
-                button.MouseEnter += delegate(object sender, MouseEventArgs e) { component_enter(sender as Button); };
-                button.MouseLeave += delegate(object sender, MouseEventArgs e) { component_leave(sender as Button); };
+                Canvas canvas = element1 as Canvas;
+                if (canvas == null) continue;
+                canvas_by_name[canvas.Name] = canvas;
+                canvas.Visibility = Visibility.Hidden;
             }
+
+            // Set up all buttons
+            foreach (FrameworkElement element1 in LayoutRoot.Children)
+            {
+                Canvas canvas = element1 as Canvas;
+                if (canvas == null) continue;
+                foreach (FrameworkElement element2 in canvas.Children)
+                {
+                    Button button = element2 as Button;
+                    if (button == null) continue;
+
+                    original_location[button] = GetLocation(button);
+                    button.Click += delegate(object sender, RoutedEventArgs e) { component_click(sender as Button); };
+                    button.MouseEnter += delegate(object sender, MouseEventArgs e) { component_enter(sender as Button); };
+                    button.MouseLeave += delegate(object sender, MouseEventArgs e) { component_leave(sender as Button); };
+
+                    Debug.Assert(button.Name.StartsWith("Button"));
+                    string submenu_name = "Submenu" + button.Name.Substring("Button".Length);
+                    if (canvas_by_name.ContainsKey(submenu_name))
+                    {
+                        submenu_map[button] = canvas_by_name[submenu_name];
+                        parent_menu_map[canvas_by_name[submenu_name]] = canvas;
+                    }
+                }
+            }
+
+            MainCanvas.Visibility = Visibility.Visible;
+            this.active_menu.Visibility = Visibility.Visible;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -247,64 +276,90 @@ namespace KinectMenu
 
         // *************************** navigation interactions *************************** //
 
-        bool animatingBack = false;
+        bool animationInProgress = false;
 
         private void component_click(Button component)
         {
-            if (main_button_list.Contains(component)) { // main list
-                animatingBack = true;
-                animateButton(component, original_locations[button_back], new Duration(TimeSpan.FromSeconds(0.5)),
+            if (animationInProgress)
+            {
+                return;
+            }
+            if (submenu_map.ContainsKey(component)) { // Opens submenu
+                animationInProgress = true;
+                component.SetValue(Canvas.ZIndexProperty, 1);
+                animateButton(component, original_location[ButtonBack], new Duration(TimeSpan.FromSeconds(0.5)),
                               delegate(object sender, EventArgs e)
                 {
-                    animatingBack = false;
-                    openNextLayer(main_button_list, game_button_list);
-                    SetLocation(component, original_locations[component]);
+                    animationInProgress = false;
+                    openNextLayer(active_menu, submenu_map[component]);
+                    SetLocation(component, original_location[component]);
+                    component.SetValue(Canvas.ZIndexProperty, 0);
                 });
             }
-            else if (game_button_list.Contains(component)) { // sublist
-            }
-            else if (component == button_back) { // back button
-                openPreviousLayer(game_button_list, main_button_list);
+            else if (component == ButtonBack) { // back button
+                openPreviousLayer(active_menu, parent_menu_map[active_menu]);
             }
             else {
-                Debug.Assert(false); // Invalid button
+                optionSelected(component);
             }
 
             // for UI testing
             this.textBlock_test.Text = "";
         }
-        
-        private void openNextLayer(Button[] currentList, Button[] nextList)
+
+        private void openRootLayer(Canvas currentMenu, Canvas rootMenu)
         {
-            // hide previous layer and show next layer
-            for (int i = 0; i < currentList.Length; i++)
-            {
-                currentList[i].Visibility = System.Windows.Visibility.Hidden;
-            }
-            for (int i = 0; i < nextList.Length; i++)
-            {
-                nextList[i].Visibility = System.Windows.Visibility.Visible;
-            }
-            // show back area
-            this.button_back.Visibility = System.Windows.Visibility.Visible;
+            currentMenu.Visibility = Visibility.Hidden;
+            rootMenu.Visibility = Visibility.Visible;
+
+            // hide back area
+            this.ButtonBack.Visibility = Visibility.Hidden;
+            active_menu = rootMenu;
         }
 
-        private void openPreviousLayer(Button[] currentList, Button[] previousList)
+
+        private void openNextLayer(Canvas currentMenu, Canvas nextMenu)
+        {
+            // hide previous layer and show next layer
+            currentMenu.Visibility = Visibility.Hidden;
+            nextMenu.Visibility = Visibility.Visible;
+
+            // show back area
+            this.ButtonBack.Visibility = Visibility.Visible;
+            active_menu = nextMenu;
+        }
+
+        private void openPreviousLayer(Canvas currentMenu, Canvas previousMenu)
         {
             // hide current layer and show previous layer
-            for (int i = 0; i < currentList.Length; i++)
-            {
-                currentList[i].Visibility = System.Windows.Visibility.Hidden;
-            }
-            for (int i = 0; i < previousList.Length; i++)
-            {
-                previousList[i].Visibility = System.Windows.Visibility.Visible;
-            }
-            if (previousList == main_button_list)
+            currentMenu.Visibility = Visibility.Hidden;
+            previousMenu.Visibility = Visibility.Visible;
+
+            if (previousMenu == RootMenu)
             {
                 // hide back area
-                this.button_back.Visibility = System.Windows.Visibility.Hidden;
+                this.ButtonBack.Visibility = Visibility.Hidden;
             }
+            active_menu = previousMenu;
+        }
+
+        private void optionSelected(Button component)
+        {
+            component.SetValue(Canvas.ZIndexProperty, 1);
+            animationInProgress = true;
+            animateButton(component, original_location[ButtonSelected], new Duration(TimeSpan.FromSeconds(0.5)),
+                          delegate(object sender, EventArgs e)
+                          {
+                              SetLocation(component, original_location[ButtonSelected]);
+                              animateButton(component, original_location[ButtonSelected], new Duration(TimeSpan.FromSeconds(2.0)),
+                                            delegate(object sender2, EventArgs e2)
+                                            {
+                                                animationInProgress = false;
+                                                openRootLayer(active_menu, RootMenu);
+                                                SetLocation(component, original_location[component]);
+                                                component.SetValue(Canvas.ZIndexProperty, 0);
+                                            }); 
+                          });
         }
 
         private void component_enter(Button component)
@@ -314,9 +369,13 @@ namespace KinectMenu
                 focus_component = component;
                 restartTimer();
 
-                Location loc = original_locations[component];
-                Location zoomedLoc = new Location(loc.Left - 50, loc.Top - 50, loc.Width + 100, loc.Height + 100);
-                animateButton(component, zoomedLoc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, zoomedLoc); });
+                if (!animationInProgress)
+                {
+                    Location loc = original_location[component];
+                    Location zoomedLoc = new Location(loc.Left - 50, loc.Top - 50, loc.Width + 100, loc.Height + 100);
+                    component.SetValue(Canvas.ZIndexProperty, 1);
+                    animateButton(component, zoomedLoc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, zoomedLoc); });
+                }
             }
         }
 
@@ -324,9 +383,10 @@ namespace KinectMenu
         {
             resetTimer();
             focus_component = null;
-            if (!animatingBack)
+            if (!animationInProgress)
             {
-                Location loc = original_locations[component];
+                Location loc = original_location[component];
+                component.SetValue(Canvas.ZIndexProperty, 0);
                 animateButton(component, loc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, loc); });
             }
         }
@@ -341,10 +401,6 @@ namespace KinectMenu
             DoubleAnimation topAnim = new DoubleAnimation(loc.Top, duration);
             DoubleAnimation widthAnim = new DoubleAnimation(loc.Width, duration);
             DoubleAnimation heightAnim = new DoubleAnimation(loc.Height, duration);
-            if (onCompleted != null)
-            {
-                leftAnim.Completed += onCompleted;
-            }
 
             Storyboard.SetTargetProperty(leftAnim, new PropertyPath(Window.LeftProperty));
             Storyboard.SetTargetProperty(topAnim, new PropertyPath(Window.TopProperty));
@@ -357,7 +413,16 @@ namespace KinectMenu
                 Storyboard.SetTargetName(anim, button.Name);
                 storyboard.Children.Add(anim);
             }
+            leftAnim.Completed += delegate(object sender, EventArgs e)
+            {
+                storyboard.Stop();
+            };
+            if (onCompleted != null)
+            {
+                leftAnim.Completed += onCompleted;
+            }
             storyboard.Begin(button);
+
         }
     }
 }
