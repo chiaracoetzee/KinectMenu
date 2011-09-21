@@ -8,7 +8,7 @@
         <Canvas Name="MainCanvas">
             <Image Name="video" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="1092" Canvas.Top="58" />
             <TextBlock Canvas.Left="197" Canvas.Top="913" Height="72" Name="textBlock_test" Text="" Width="1023" FontSize="40" TextAlignment="Right" />
-            <Button Canvas.Left="197" Canvas.Top="260" Content="Games" Height="200" Name="mainButton_Games" Width="200" FontSize="40" Click="mainButton_Games_Click" MouseEnter="mainButton_Games_MouseEnter" MouseLeave="mainButton_Games_MouseLeave" />
+            <Button Canvas.Left="197" Canvas.Top="260" Content="Games" Height="200" Name="mainButton_Games" Width="200" FontSize="40" />
             <Button Content="Movies" Height="200" Name="mainButton_Movies" Width="200" Canvas.Left="520" Canvas.Top="260" FontSize="40" />
             <Button Content="Music" Height="200" Name="mainButton_Music" Width="200" Canvas.Left="833" Canvas.Top="260" FontSize="40" />
             <Button Content="Apps" Height="200" Name="mainButton_Apps" Width="200" Canvas.Left="360" Canvas.Top="577" FontSize="40" />
@@ -17,7 +17,7 @@
             <Button Content="Kitectimals" FontSize="28" Height="50" Name="button_game_item1" Width="200" Canvas.Left="360" Canvas.Top="302" Visibility="Hidden" />
             <Button Content="Carnival Games" FontSize="28" Height="50" Name="button_game_item2" Width="200" Canvas.Left="360" Canvas.Top="374" Visibility="Hidden" />
             <Button Content="Kinect Sports" FontSize="28" Height="50" Name="button_game_item3" Width="200" Canvas.Left="360" Canvas.Top="446" Visibility="Hidden" />
-            <Button Content="THIS IS BACK AREA" FontSize="40" Height="70" Name="button_back" Width="1280" Visibility="Hidden" Background="#FFF2A8A8" Canvas.Left="0" Canvas.Top="0" Click="button_back_Click" MouseEnter="button_back_MouseEnter" MouseLeave="button_back_MouseLeave" />
+            <Button Content="Back" FontSize="40" Height="70" Name="button_back" Width="1280" Visibility="Hidden" Background="#FFF2A8A8" Canvas.Left="0" Canvas.Top="0" />
         </Canvas>
     </Grid>
 </Window>

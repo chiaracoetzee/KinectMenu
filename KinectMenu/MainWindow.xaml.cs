@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -13,6 +14,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
@@ -39,6 +41,8 @@ namespace KinectMenu
         Button[] main_button_list;
         Button[] game_button_list;
 
+        Dictionary<Button, Location> original_locations = new Dictionary<Button,Location>();
+
         public MainWindow()
         {
             InitializeComponent();
@@ -51,6 +55,17 @@ namespace KinectMenu
             // for UI testing
             main_button_list = new Button[] { mainButton_Apps, mainButton_Games, mainButton_Movies, mainButton_Music, mainButton_Settings};
             game_button_list = new Button[] { button_game_item0, button_game_item1, button_game_item2, button_game_item3 };
+
+            List<Button> all_buttons = new List<Button>(main_button_list);
+            all_buttons.AddRange(game_button_list);
+            all_buttons.Add(button_back);
+            foreach (Button button in all_buttons)
+            {
+                original_locations[button] = GetLocation(button);
+                button.Click += delegate(object sender, RoutedEventArgs e) { component_click(sender as Button); };
+                button.MouseEnter += delegate(object sender, MouseEventArgs e) { component_enter(sender as Button); };
+                button.MouseLeave += delegate(object sender, MouseEventArgs e) { component_leave(sender as Button); };
+            }
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -193,30 +208,80 @@ namespace KinectMenu
             timer.Stop();
         }
 
+        // *************************** helpers *************************** //
+
+        struct Location
+        {
+            public Location(double left, double top, double width, double height)
+            {
+                this.Left = left;
+                this.Top = top;
+                this.Width = width;
+                this.Height = height;
+            }
+            public double Left;
+            public double Top;
+            public double Width;
+            public double Height;
+        }
+
+        Location GetLocation(FrameworkElement e)
+        {
+            Location result = new Location();
+            result.Left = (double)e.GetValue(LeftProperty);
+            result.Top = (double)e.GetValue(TopProperty);
+            result.Width = e.Width;
+            result.Height = e.Height;
+            return result;
+        }
+
+        void SetLocation(FrameworkElement e, Location loc)
+        {
+            e.SetValue(LeftProperty, loc.Left);
+            e.SetValue(TopProperty, loc.Top);
+            e.Width = loc.Width;
+            e.Height = loc.Height;
+        }
+
         // *************************** navigation interactions *************************** //
+
+        bool animatingBack = false;
 
         private void component_click(Button component)
         {
             if (main_button_list.Contains(component)) { // main list
-                openNextLayer(main_button_list, game_button_list);
+                animatingBack = true;
+                animateButton(component, original_locations[button_back], new Duration(TimeSpan.FromSeconds(0.5)),
+                              delegate(object sender, EventArgs e)
+                {
+                    animatingBack = false;
+                    openNextLayer(main_button_list, game_button_list);
+                    SetLocation(component, original_locations[component]);
+                });
             }
             else if (game_button_list.Contains(component)) { // sublist
             }
-            else { // back button
+            else if (component == button_back) { // back button
                 openPreviousLayer(game_button_list, main_button_list);
+            }
+            else {
+                Debug.Assert(false); // Invalid button
             }
 
             // for UI testing
             this.textBlock_test.Text = "";
         }
-
+        
         private void openNextLayer(Button[] currentList, Button[] nextList)
         {
-            // disable previous layer and show next layer
-            for (int i = 0; i < currentList.Length | i < nextList.Length; i++)
+            // hide previous layer and show next layer
+            for (int i = 0; i < currentList.Length; i++)
             {
-                if(i<currentList.Length) currentList[i].IsEnabled = false;
-                if (i < nextList.Length) nextList[i].Visibility = System.Windows.Visibility.Visible;
+                currentList[i].Visibility = System.Windows.Visibility.Hidden;
+            }
+            for (int i = 0; i < nextList.Length; i++)
+            {
+                nextList[i].Visibility = System.Windows.Visibility.Visible;
             }
             // show back area
             this.button_back.Visibility = System.Windows.Visibility.Visible;
@@ -225,13 +290,19 @@ namespace KinectMenu
         private void openPreviousLayer(Button[] currentList, Button[] previousList)
         {
             // hide current layer and show previous layer
-            for (int i = 0; i < currentList.Length | i < previousList.Length; i++)
+            for (int i = 0; i < currentList.Length; i++)
             {
-                if (i < currentList.Length) currentList[i].Visibility = System.Windows.Visibility.Hidden;
-                if (i < previousList.Length) previousList[i].IsEnabled = true;
+                currentList[i].Visibility = System.Windows.Visibility.Hidden;
             }
-            // hiden back area
-            this.button_back.Visibility = System.Windows.Visibility.Hidden;
+            for (int i = 0; i < previousList.Length; i++)
+            {
+                previousList[i].Visibility = System.Windows.Visibility.Visible;
+            }
+            if (previousList == main_button_list)
+            {
+                // hide back area
+                this.button_back.Visibility = System.Windows.Visibility.Hidden;
+            }
         }
 
         private void component_enter(Button component)
@@ -240,6 +311,10 @@ namespace KinectMenu
             {
                 focus_component = component;
                 restartTimer();
+
+                Location loc = original_locations[component];
+                Location zoomedLoc = new Location(loc.Left - 50, loc.Top - 50, loc.Width + 100, loc.Height + 100);
+                animateButton(component, zoomedLoc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, zoomedLoc); });
             }
         }
 
@@ -247,39 +322,40 @@ namespace KinectMenu
         {
             resetTimer();
             focus_component = null;
+            if (!animatingBack)
+            {
+                Location loc = original_locations[component];
+                animateButton(component, loc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, loc); });
+            }
         }
 
-        // *************************** mouse interactions *************************** //
+        // *************************** animations *********************************** //
 
-        private void mainButton_Games_Click(object sender, RoutedEventArgs e)
+        private void animateButton(Button button, Location loc, Duration duration, EventHandler onCompleted)
         {
+            this.RegisterName(button.Name, button);
 
-            component_click(this.mainButton_Games);
-        }
+            DoubleAnimation leftAnim = new DoubleAnimation(loc.Left, duration);
+            DoubleAnimation topAnim = new DoubleAnimation(loc.Top, duration);
+            DoubleAnimation widthAnim = new DoubleAnimation(loc.Width, duration);
+            DoubleAnimation heightAnim = new DoubleAnimation(loc.Height, duration);
+            if (onCompleted != null)
+            {
+                leftAnim.Completed += onCompleted;
+            }
 
-        private void mainButton_Games_MouseEnter(object sender, MouseEventArgs e)
-        {
-            component_enter(this.mainButton_Games);
-        }
-
-        private void mainButton_Games_MouseLeave(object sender, MouseEventArgs e)
-        {
-            component_leave(this.mainButton_Games);
-        }
-
-        private void button_back_Click(object sender, RoutedEventArgs e)
-        {
-            openPreviousLayer(this.game_button_list, this.main_button_list);
-        }
-
-        private void button_back_MouseEnter(object sender, MouseEventArgs e)
-        {
-            component_enter(this.button_back);
-        }
-
-        private void button_back_MouseLeave(object sender, MouseEventArgs e)
-        {
-            component_leave(this.button_back);
+            Storyboard.SetTargetProperty(leftAnim, new PropertyPath(Window.LeftProperty));
+            Storyboard.SetTargetProperty(topAnim, new PropertyPath(Window.TopProperty));
+            Storyboard.SetTargetProperty(widthAnim, new PropertyPath(FrameworkElement.WidthProperty));
+            Storyboard.SetTargetProperty(heightAnim, new PropertyPath(FrameworkElement.HeightProperty));
+            Storyboard storyboard = new Storyboard();
+            foreach (DoubleAnimation anim in new DoubleAnimation[] { leftAnim, topAnim, widthAnim, heightAnim })
+            {
+                anim.FillBehavior = FillBehavior.Stop;
+                Storyboard.SetTargetName(anim, button.Name);
+                storyboard.Children.Add(anim);
+            }
+            storyboard.Begin(button);
         }
     }
 }
