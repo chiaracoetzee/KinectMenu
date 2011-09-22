@@ -5,6 +5,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -13,6 +14,7 @@ using System.Windows.Data;
 using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
@@ -46,8 +48,10 @@ namespace KinectMenu
         int window_height = 0, window_width = 0;
 
         // for UI testing
-        Button[] main_button_list;
-        Button[] game_button_list;
+        Dictionary<Button, Location> original_location = new Dictionary<Button,Location>();
+        Dictionary<Button, Canvas> submenu_map = new Dictionary<Button, Canvas>();
+        Dictionary<Canvas, Canvas> parent_menu_map = new Dictionary<Canvas, Canvas>();
+        Canvas active_menu;
 
         public MainWindow()
         {
@@ -59,8 +63,48 @@ namespace KinectMenu
             this.Cursor = Cursors.Hand;
             
             // for UI testing
-            main_button_list = new Button[] { mainButton_Apps, mainButton_Games, mainButton_Movies, mainButton_Music, mainButton_Settings};
-            game_button_list = new Button[] { button_game_item0, button_game_item1, button_game_item2, button_game_item3 };
+
+            this.active_menu = RootMenu;
+            ButtonBack.Visibility = Visibility.Hidden;
+            ButtonSelected.Visibility = Visibility.Hidden;
+
+            // Build map of canvas name to canvas
+            Dictionary<string, Canvas> canvas_by_name = new Dictionary<string,Canvas>();
+            foreach (FrameworkElement element1 in LayoutRoot.Children)
+            {
+                Canvas canvas = element1 as Canvas;
+                if (canvas == null) continue;
+                canvas_by_name[canvas.Name] = canvas;
+                canvas.Visibility = Visibility.Hidden;
+            }
+
+            // Set up all buttons
+            foreach (FrameworkElement element1 in LayoutRoot.Children)
+            {
+                Canvas canvas = element1 as Canvas;
+                if (canvas == null) continue;
+                foreach (FrameworkElement element2 in canvas.Children)
+                {
+                    Button button = element2 as Button;
+                    if (button == null) continue;
+
+                    original_location[button] = GetLocation(button);
+                    button.Click += delegate(object sender, RoutedEventArgs e) { component_click(sender as Button); };
+                    button.MouseEnter += delegate(object sender, MouseEventArgs e) { component_enter(sender as Button); };
+                    button.MouseLeave += delegate(object sender, MouseEventArgs e) { component_leave(sender as Button); };
+
+                    Debug.Assert(button.Name.StartsWith("Button"));
+                    string submenu_name = "Submenu" + button.Name.Substring("Button".Length);
+                    if (canvas_by_name.ContainsKey(submenu_name))
+                    {
+                        submenu_map[button] = canvas_by_name[submenu_name];
+                        parent_menu_map[canvas_by_name[submenu_name]] = canvas;
+                    }
+                }
+            }
+
+            MainCanvas.Visibility = Visibility.Visible;
+            this.active_menu.Visibility = Visibility.Visible;
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -246,7 +290,7 @@ namespace KinectMenu
                 if (last_threshold_position.X - currentHand.X >= window_width * x_swipe_distance
                     && Math.Abs(last_threshold_position.Y - currentHand.Y) <= window_height * y_swipe_distance)
                 {
-                    openPreviousLayer(game_button_list, main_button_list);
+                    // openPreviousLayer(game_button_list, main_button_list);
                     this.textBlock_test.Text = "Swipe! " + Convert.ToString(timeNow);
                 }
                 // update the position
@@ -261,46 +305,127 @@ namespace KinectMenu
             return DateTime.Now.GetTimestamp();
         }
 
+        // *************************** helpers *************************** //
+
+        struct Location
+        {
+            public Location(double left, double top, double width, double height)
+            {
+                this.Left = left;
+                this.Top = top;
+                this.Width = width;
+                this.Height = height;
+            }
+            public double Left;
+            public double Top;
+            public double Width;
+            public double Height;
+        }
+
+        Location GetLocation(FrameworkElement e)
+        {
+            Location result = new Location();
+            result.Left = (double)e.GetValue(LeftProperty);
+            result.Top = (double)e.GetValue(TopProperty);
+            result.Width = e.Width;
+            result.Height = e.Height;
+            return result;
+        }
+
+        void SetLocation(FrameworkElement e, Location loc)
+        {
+            e.SetValue(LeftProperty, loc.Left);
+            e.SetValue(TopProperty, loc.Top);
+            e.Width = loc.Width;
+            e.Height = loc.Height;
+        }
 
         // *************************** navigation interactions *************************** //
 
+        bool animationInProgress = false;
+
         private void component_click(Button component)
         {
-            if (main_button_list.Contains(component)) { // main list
-                openNextLayer(main_button_list, game_button_list);
+            if (animationInProgress)
+            {
+                return;
             }
-            else if (game_button_list.Contains(component)) { // sublist
+            if (submenu_map.ContainsKey(component)) { // Opens submenu
+                animationInProgress = true;
+                component.SetValue(Canvas.ZIndexProperty, 1);
+                animateButton(component, original_location[ButtonBack], new Duration(TimeSpan.FromSeconds(0.5)),
+                              delegate(object sender, EventArgs e)
+                {
+                    animationInProgress = false;
+                    openNextLayer(active_menu, submenu_map[component]);
+                    SetLocation(component, original_location[component]);
+                    component.SetValue(Canvas.ZIndexProperty, 0);
+                });
             }
-            else { // back button
-                openPreviousLayer(game_button_list, main_button_list);
+            else if (component == ButtonBack) { // back button
+                openPreviousLayer(active_menu, parent_menu_map[active_menu]);
+            }
+            else {
+                optionSelected(component);
             }
 
             // for UI testing
             this.textBlock_test.Text = "";
         }
 
-        private void openNextLayer(Button[] currentList, Button[] nextList)
+        private void openRootLayer(Canvas currentMenu, Canvas rootMenu)
         {
-            // disable previous layer and show next layer
-            for (int i = 0; i < currentList.Length | i < nextList.Length; i++)
-            {
-                if(i<currentList.Length) currentList[i].IsEnabled = false;
-                if (i < nextList.Length) nextList[i].Visibility = System.Windows.Visibility.Visible;
-            }
-            // show back area
-            this.button_back.Visibility = System.Windows.Visibility.Visible;
+            currentMenu.Visibility = Visibility.Hidden;
+            rootMenu.Visibility = Visibility.Visible;
+
+            // hide back area
+            this.ButtonBack.Visibility = Visibility.Hidden;
+            active_menu = rootMenu;
         }
 
-        private void openPreviousLayer(Button[] currentList, Button[] previousList)
+
+        private void openNextLayer(Canvas currentMenu, Canvas nextMenu)
+        {
+            // hide previous layer and show next layer
+            currentMenu.Visibility = Visibility.Hidden;
+            nextMenu.Visibility = Visibility.Visible;
+
+            // show back area
+            this.ButtonBack.Visibility = Visibility.Visible;
+            active_menu = nextMenu;
+        }
+
+        private void openPreviousLayer(Canvas currentMenu, Canvas previousMenu)
         {
             // hide current layer and show previous layer
-            for (int i = 0; i < currentList.Length | i < previousList.Length; i++)
+            currentMenu.Visibility = Visibility.Hidden;
+            previousMenu.Visibility = Visibility.Visible;
+
+            if (previousMenu == RootMenu)
             {
-                if (i < currentList.Length) currentList[i].Visibility = System.Windows.Visibility.Hidden;
-                if (i < previousList.Length) previousList[i].IsEnabled = true;
+                // hide back area
+                this.ButtonBack.Visibility = Visibility.Hidden;
             }
-            // hiden back area
-            this.button_back.Visibility = System.Windows.Visibility.Hidden;
+            active_menu = previousMenu;
+        }
+
+        private void optionSelected(Button component)
+        {
+            component.SetValue(Canvas.ZIndexProperty, 1);
+            animationInProgress = true;
+            animateButton(component, original_location[ButtonSelected], new Duration(TimeSpan.FromSeconds(0.5)),
+                          delegate(object sender, EventArgs e)
+                          {
+                              SetLocation(component, original_location[ButtonSelected]);
+                              animateButton(component, original_location[ButtonSelected], new Duration(TimeSpan.FromSeconds(2.0)),
+                                            delegate(object sender2, EventArgs e2)
+                                            {
+                                                animationInProgress = false;
+                                                openRootLayer(active_menu, RootMenu);
+                                                SetLocation(component, original_location[component]);
+                                                component.SetValue(Canvas.ZIndexProperty, 0);
+                                            }); 
+                          });
         }
 
         private void component_enter(Button component)
@@ -309,6 +434,14 @@ namespace KinectMenu
             {
                 focus_component = component;
                 restartTimer();
+
+                if (!animationInProgress)
+                {
+                    Location loc = original_location[component];
+                    Location zoomedLoc = new Location(loc.Left - 50, loc.Top - 50, loc.Width + 100, loc.Height + 100);
+                    component.SetValue(Canvas.ZIndexProperty, 1);
+                    animateButton(component, zoomedLoc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, zoomedLoc); });
+                }
             }
         }
 
@@ -316,39 +449,46 @@ namespace KinectMenu
         {
             resetTimer();
             focus_component = null;
+            if (!animationInProgress)
+            {
+                Location loc = original_location[component];
+                component.SetValue(Canvas.ZIndexProperty, 0);
+                animateButton(component, loc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, loc); });
+            }
         }
 
-        // *************************** mouse interactions *************************** //
+        // *************************** animations *********************************** //
 
-        private void mainButton_Games_Click(object sender, RoutedEventArgs e)
+        private void animateButton(Button button, Location loc, Duration duration, EventHandler onCompleted)
         {
+            this.RegisterName(button.Name, button);
 
-            component_click(this.mainButton_Games);
-        }
+            DoubleAnimation leftAnim = new DoubleAnimation(loc.Left, duration);
+            DoubleAnimation topAnim = new DoubleAnimation(loc.Top, duration);
+            DoubleAnimation widthAnim = new DoubleAnimation(loc.Width, duration);
+            DoubleAnimation heightAnim = new DoubleAnimation(loc.Height, duration);
 
-        private void mainButton_Games_MouseEnter(object sender, MouseEventArgs e)
-        {
-            component_enter(this.mainButton_Games);
-        }
+            Storyboard.SetTargetProperty(leftAnim, new PropertyPath(Window.LeftProperty));
+            Storyboard.SetTargetProperty(topAnim, new PropertyPath(Window.TopProperty));
+            Storyboard.SetTargetProperty(widthAnim, new PropertyPath(FrameworkElement.WidthProperty));
+            Storyboard.SetTargetProperty(heightAnim, new PropertyPath(FrameworkElement.HeightProperty));
+            Storyboard storyboard = new Storyboard();
+            foreach (DoubleAnimation anim in new DoubleAnimation[] { leftAnim, topAnim, widthAnim, heightAnim })
+            {
+                anim.FillBehavior = FillBehavior.Stop;
+                Storyboard.SetTargetName(anim, button.Name);
+                storyboard.Children.Add(anim);
+            }
+            leftAnim.Completed += delegate(object sender, EventArgs e)
+            {
+                storyboard.Stop();
+            };
+            if (onCompleted != null)
+            {
+                leftAnim.Completed += onCompleted;
+            }
+            storyboard.Begin(button);
 
-        private void mainButton_Games_MouseLeave(object sender, MouseEventArgs e)
-        {
-            component_leave(this.mainButton_Games);
-        }
-
-        private void button_back_Click(object sender, RoutedEventArgs e)
-        {
-            openPreviousLayer(this.game_button_list, this.main_button_list);
-        }
-
-        private void button_back_MouseEnter(object sender, MouseEventArgs e)
-        {
-            component_enter(this.button_back);
-        }
-
-        private void button_back_MouseLeave(object sender, MouseEventArgs e)
-        {
-            component_leave(this.button_back);
         }
     }
 }

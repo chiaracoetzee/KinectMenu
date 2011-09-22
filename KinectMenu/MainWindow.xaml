@@ -4,20 +4,41 @@
         Title="Kinect Menu" 
         WindowStartupLocation="CenterScreen"
         Height="1024" Width="1280" Loaded="Window_Loaded" Closed="Window_Closed" Topmost="False" VerticalAlignment="Center" HorizontalAlignment="Center">
-    <Grid>
+    <Grid Name="LayoutRoot">
         <Canvas Name="MainCanvas">
             <Image Name="video" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="1092" Canvas.Top="58" />
             <TextBlock Canvas.Left="197" Canvas.Top="913" Height="72" Name="textBlock_test" Text="" Width="1023" FontSize="40" TextAlignment="Right" />
-            <Button Canvas.Left="197" Canvas.Top="260" Content="Games" Height="200" Name="mainButton_Games" Width="200" FontSize="40" Click="mainButton_Games_Click" MouseEnter="mainButton_Games_MouseEnter" MouseLeave="mainButton_Games_MouseLeave" />
-            <Button Content="Movies" Height="200" Name="mainButton_Movies" Width="200" Canvas.Left="520" Canvas.Top="260" FontSize="40" />
-            <Button Content="Music" Height="200" Name="mainButton_Music" Width="200" Canvas.Left="833" Canvas.Top="260" FontSize="40" />
-            <Button Content="Apps" Height="200" Name="mainButton_Apps" Width="200" Canvas.Left="360" Canvas.Top="577" FontSize="40" />
-            <Button Content="Settings" Height="200" Name="mainButton_Settings" Width="200" Canvas.Left="727" Canvas.Top="577" FontSize="40" />
-            <Button Content="Dance Central" FontSize="28" Height="50" Name="button_game_item0" Width="200" Canvas.Left="360" Canvas.Top="234" Visibility="Hidden" />
-            <Button Content="Kitectimals" FontSize="28" Height="50" Name="button_game_item1" Width="200" Canvas.Left="360" Canvas.Top="302" Visibility="Hidden" />
-            <Button Content="Carnival Games" FontSize="28" Height="50" Name="button_game_item2" Width="200" Canvas.Left="360" Canvas.Top="374" Visibility="Hidden" />
-            <Button Content="Kinect Sports" FontSize="28" Height="50" Name="button_game_item3" Width="200" Canvas.Left="360" Canvas.Top="446" Visibility="Hidden" />
-            <Button Content="THIS IS BACK AREA" FontSize="40" Height="70" Name="button_back" Width="1280" Visibility="Hidden" Background="#FFF2A8A8" Canvas.Left="0" Canvas.Top="0" Click="button_back_Click" MouseEnter="button_back_MouseEnter" MouseLeave="button_back_MouseLeave" />
+            <Button Content="Back" FontSize="40" Height="70" Name="ButtonBack" Width="1280" Visibility="Hidden" Background="#FFF2A8A8" Canvas.Left="0" Canvas.Top="0" />
+            <Button Content="Selected" FontSize="40" Height="362" Name="ButtonSelected" Width="447" Background="Yellow" Visibility="Hidden" Canvas.Left="430" Canvas.Top="260" />
+        </Canvas>
+        <Canvas Name="RootMenu" Visibility="Hidden" >
+            <Button Content="Games" Height="200" Name="ButtonGames" Width="200" Canvas.Left="197" Canvas.Top="260" FontSize="40" />
+            <Button Content="Movies" Height="200" Name="ButtonMovies" Width="200" Canvas.Left="520" Canvas.Top="260" FontSize="40" />
+            <Button Content="Music" Height="200" Name="ButtonMusic" Width="200" Canvas.Left="833" Canvas.Top="260" FontSize="40" />
+            <Button Content="Apps" Height="200" Name="ButtonApps" Width="200" Canvas.Left="360" Canvas.Top="577" FontSize="40" />
+            <Button Content="Settings" Height="200" Name="ButtonSettings" Width="200" Canvas.Left="727" Canvas.Top="577" FontSize="40" />
+        </Canvas>
+        <Canvas Name="SubmenuGames" Visibility="Hidden" >
+            <Button Canvas.Left="197" Canvas.Top="206" Content="Dance Central" FontSize="28" Height="200" Name="ButtonGameItem0" Width="200" />
+            <Button Canvas.Left="540" Canvas.Top="206" Content="Kitectimals" FontSize="28" Height="200" Name="ButtonGameItem1" Width="200" />
+            <Button Canvas.Left="886" Canvas.Top="206" Content="Carnival Games" FontSize="28" Height="200" Name="ButtonGameItem2" Width="200" />
+            <Button Canvas.Left="197" Canvas.Top="524" Content="Kinect Sports" FontSize="28" Height="200" Name="ButtonGameItem3" Width="200" />
+            <Button Canvas.Left="540" Canvas.Top="524" Content="Kung Fu Panda" FontSize="28" Height="200" Name="ButtonGameItem4" Width="200" />
+            <Button Canvas.Left="886" Canvas.Top="524" Content="Angry Birds" FontSize="28" Height="200" Name="ButtonGameItem5" Width="200" />
+        </Canvas>
+        <Canvas Name="SubmenuMovies" Visibility="Hidden" >
+            <Button Canvas.Left="197" Canvas.Top="206" Content="Everything&#x0a;Must Go" FontSize="28" Height="200" Name="ButtonMovieItem0" Width="200" />
+            <Button Canvas.Left="540" Canvas.Top="206" Content="Something&#x0a;Borrowed" FontSize="28" Height="200" Name="ButtonMovieItem1" Width="200" />
+            <Button Canvas.Left="886" Canvas.Top="206" Content="Rango" FontSize="28" Height="200" Name="ButtonMovieItem2" Width="200" />
+            <Button Canvas.Left="197" Canvas.Top="524" Content="Limitless" FontSize="28" Height="200" Name="ButtonMovieItem3" Width="200" />
+            <Button Canvas.Left="540" Canvas.Top="524" Content="Rio" FontSize="28" Height="200" Name="ButtonMovieItem4" Width="200" />
+            <Button Canvas.Left="886" Canvas.Top="524" Content="The Lincoln&#x0a;Lawyer" FontSize="28" Height="200" Name="ButtonMovieItem5" Width="200" />
+        </Canvas>
+        <Canvas Name="SubmenuApps" Visibility="Hidden" >
+            <Button Canvas.Left="384" Canvas.Top="208" Content="Facebook" FontSize="28" Height="200" Name="ButtonAppItem0" Width="200" />
+            <Button Canvas.Left="728" Canvas.Top="208" Content="Google+" FontSize="28" Height="200" Name="ButtonAppItem1" Width="200" />
+            <Button Canvas.Left="384" Canvas.Top="516" Content="Twitter" FontSize="28" Height="200" Name="ButtonAppItem2" Width="200" />
+            <Button Canvas.Left="728" Canvas.Top="516" Content="Yelp" FontSize="28" Height="200" Name="ButtonAppItem3" Width="200" />
         </Canvas>
     </Grid>
 </Window>
