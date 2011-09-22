@@ -9,7 +9,7 @@
             <Image Name="video" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="1092" Canvas.Top="58" />
             <TextBlock Canvas.Left="197" Canvas.Top="913" Height="72" Name="textBlock_test" Text="" Width="1023" FontSize="40" TextAlignment="Right" />
             <Button Content="Back" FontSize="40" Height="70" Name="ButtonBack" Width="1280" Visibility="Hidden" Background="#FFF2A8A8" Canvas.Left="0" Canvas.Top="0" />
-            <Button Content="Selected" FontSize="40" Height="362" Name="ButtonSelected" Width="447" Background="Yellow" Visibility="Hidden" Canvas.Left="430" Canvas.Top="260" />
+            <Button Content="Selected" FontSize="40" Height="362" Name="ButtonSelected" Width="447" Visibility="Hidden" Canvas.Left="430" Canvas.Top="260" />
         </Canvas>
         <Canvas Name="RootMenu" Visibility="Hidden" >
             <Button Content="Games" Height="200" Name="ButtonGames" Width="200" Canvas.Left="197" Canvas.Top="260" FontSize="40" />
@@ -33,6 +33,35 @@
             <Button Canvas.Left="197" Canvas.Top="524" Content="Limitless" FontSize="28" Height="200" Name="ButtonMovieItem3" Width="200" />
             <Button Canvas.Left="540" Canvas.Top="524" Content="Rio" FontSize="28" Height="200" Name="ButtonMovieItem4" Width="200" />
             <Button Canvas.Left="886" Canvas.Top="524" Content="The Lincoln&#x0a;Lawyer" FontSize="28" Height="200" Name="ButtonMovieItem5" Width="200" />
+        </Canvas>
+        <Canvas Name="SubmenuMusic" Visibility="Hidden" >
+            <Button Canvas.Left="138" Canvas.Top="350" Content="Philipp Glass&#x0a;The Hours" FontSize="28" Height="300" Name="ButtonAlbum0" Width="300" />
+            <Button Canvas.Left="486" Canvas.Top="350" Content="Novalima&#x0a;Afro" FontSize="28" Height="300" Name="ButtonAlbum1" Width="300" />
+            <Button Canvas.Left="828" Canvas.Top="350" Content="Amon Tobin&#x0a;Permutation" FontSize="28" Height="300" Name="ButtonAlbum2" Width="300" />
+        </Canvas>
+        <Canvas Name="SubmenuAlbum0" Visibility="Hidden" >
+            <Button Canvas.Left="180" Canvas.Top="206" Content="The Poet Acts" FontSize="28" Height="200" Name="ButtonAlbum0Item0" Width="200" />
+            <Button Canvas.Left="524" Canvas.Top="206" Content="Morning&#x0a;Passages" FontSize="28" Height="200" Name="ButtonAlbum0Item1" Width="200" />
+            <Button Canvas.Left="870" Canvas.Top="206" Content="Something She&#x0a;Has to Do" FontSize="28" Height="200" Name="ButtonAlbum0Item2" Width="200" />
+            <Button Canvas.Left="56" Canvas.Top="524" Content="For Your&#x0a;Own Benefit" FontSize="28" Height="200" Name="ButtonAlbum0Item3" Width="200" />
+            <Button Canvas.Left="372" Canvas.Top="524" Content="Vanessa and&#x0a;the&#x0a;Changelings" FontSize="28" Height="200" Name="ButtonAlbum0Item4" Width="200" />
+            <Button Canvas.Left="682" Canvas.Top="524" Content="I'm Going to&#x0a;Make a Cake" FontSize="28" Height="200" Name="ButtonAlbum0Item5" Width="200" />
+            <Button Canvas.Left="998" Canvas.Top="524" Content="An Unwelcome&#x0a;Friend" FontSize="28" Height="200" Name="ButtonAlbum0Item6" Width="200" />
+        </Canvas>
+        <Canvas Name="SubmenuAlbum1" Visibility="Hidden" >
+            <Button Canvas.Left="197" Canvas.Top="206" Content="Chinchivi" FontSize="28" Height="200" Name="ButtonAlbum1Item0" Width="200" />
+            <Button Canvas.Left="540" Canvas.Top="206" Content="Bandolero" FontSize="28" Height="200" Name="ButtonAlbum1Item1" Width="200" />
+            <Button Canvas.Left="886" Canvas.Top="206" Content="Malato" FontSize="28" Height="200" Name="ButtonAlbum1Item2" Width="200" />
+            <Button Canvas.Left="372" Canvas.Top="526" Content="Machete" FontSize="28" Height="200" Name="ButtonAlbum1Item3" Width="200" />
+            <Button Canvas.Left="714" Canvas.Top="526" Content="Candela" FontSize="28" Height="200" Name="ButtonAlbum1Item4" Width="200" />
+        </Canvas>
+        <Canvas Name="SubmenuAlbum2" Visibility="Hidden" >
+            <Button Canvas.Left="197" Canvas.Top="206" Content="Like Regular&#x0a;Chickens" FontSize="28" Height="200" Name="ButtonAlbum2Item0" Width="200" />
+            <Button Canvas.Left="540" Canvas.Top="206" Content="Bridge" FontSize="28" Height="200" Name="ButtonAlbum2Item1" Width="200" />
+            <Button Canvas.Left="886" Canvas.Top="206" Content="Reanimator" FontSize="28" Height="200" Name="ButtonAlbum2Item2" Width="200" />
+            <Button Canvas.Left="197" Canvas.Top="524" Content="Sordid" FontSize="28" Height="200" Name="ButtonAlbum2Item3" Width="200" />
+            <Button Canvas.Left="540" Canvas.Top="524" Content="Nightlife" FontSize="28" Height="200" Name="ButtonAlbum2Item4" Width="200" />
+            <Button Canvas.Left="886" Canvas.Top="524" Content="Escape" FontSize="28" Height="200" Name="ButtonAlbum2Item5" Width="200" />
         </Canvas>
         <Canvas Name="SubmenuApps" Visibility="Hidden" >
             <Button Canvas.Left="384" Canvas.Top="208" Content="Facebook" FontSize="28" Height="200" Name="ButtonAppItem0" Width="200" />
