@@ -37,11 +37,11 @@
             <Button Canvas.Left="886" Canvas.Top="524" Content="The Lincoln&#x0a;Lawyer" FontSize="28" Height="200" Name="ButtonMovieItem5" Width="200" />
         </Canvas>
         <Canvas Name="SubmenuMusic" Visibility="Hidden" >
-            <Button Canvas.Left="138" Canvas.Top="350" Content="Philipp Glass&#x0a;The Hours" FontSize="28" Height="300" Name="ButtonAlbum0" Width="300" />
+            <Button Canvas.Left="138" Canvas.Top="350" Content="Philip Glass&#x0a;The Hours" FontSize="28" Height="300" Name="ButtonAlbum0" Width="300" />
             <Button Canvas.Left="486" Canvas.Top="350" Content="Novalima&#x0a;Afro" FontSize="28" Height="300" Name="ButtonAlbum1" Width="300" />
             <Button Canvas.Left="828" Canvas.Top="350" Content="Amon Tobin&#x0a;Permutation" FontSize="28" Height="300" Name="ButtonAlbum2" Width="300" />
         </Canvas>
-        <Canvas Name="SubmenuAlbum0" Visibility="Hidden" >
+        <Canvas Name="SubmenuAlbum0" >
             <Button Canvas.Left="180" Canvas.Top="206" Content="The Poet Acts" FontSize="28" Height="200" Name="ButtonAlbum0Item0" Width="200" />
             <Button Canvas.Left="524" Canvas.Top="206" Content="Morning&#x0a;Passages" FontSize="28" Height="200" Name="ButtonAlbum0Item1" Width="200" />
             <Button Canvas.Left="870" Canvas.Top="206" Content="Something She&#x0a;Has to Do" FontSize="28" Height="200" Name="ButtonAlbum0Item2" Width="200" />

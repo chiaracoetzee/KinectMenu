@@ -6,6 +6,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Windows;
@@ -17,6 +18,7 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
+using System.Windows.Resources;
 using System.Windows.Shapes;
 
 // ** for Kinect component **
@@ -95,6 +97,36 @@ namespace KinectMenu
                     {
                         submenu_map[button] = canvas_by_name[submenu_name];
                         parent_menu_map[canvas_by_name[submenu_name]] = canvas;
+                    }
+
+                    Uri contentUri = new Uri("/" + button.Name + ".jpg", UriKind.Relative);
+                    StreamResourceInfo resourceInfo = Application.GetContentStream(contentUri);
+                    if (resourceInfo != null)
+                    {
+                        Image image = new Image();
+                        image.Source = new BitmapImage(contentUri);
+                        button.Content = image;
+                    }
+
+                    if (canvas.Name.StartsWith("SubmenuAlbum"))
+                    {
+                        // It's a song, add the music note background
+                        Grid contentGrid = new Grid();
+                        Image backgroundImage = new Image();
+                        backgroundImage.Source = new BitmapImage(new Uri("/NoteBackground.png", UriKind.Relative));
+                        backgroundImage.SetValue(LeftProperty, 0.0);
+                        backgroundImage.SetValue(TopProperty, 0.0);
+                        contentGrid.Children.Add(backgroundImage);
+
+                        Label label = new Label();
+                        label.Content = (string)button.Content;
+                        label.FontSize = 50;
+                        label.HorizontalAlignment = HorizontalAlignment.Center;
+                        label.VerticalAlignment = VerticalAlignment.Center;
+                        contentGrid.Children.Add(label);
+                        Viewbox viewbox = new Viewbox();
+                        viewbox.Child = contentGrid;
+                        button.Content = viewbox;
                     }
                 }
             }
@@ -535,11 +567,13 @@ namespace KinectMenu
         {
             component.SetValue(Canvas.ZIndexProperty, 1);
             animationInProgress = true;
-            animateButton(component, original_location[ButtonSelected], new Duration(TimeSpan.FromSeconds(0.5)),
+            Location selectedLoc = original_location[ButtonSelected];
+            selectedLoc.Width = selectedLoc.Height / component.Height * component.Width; // Maintain aspect ratio
+            animateButton(component, selectedLoc, new Duration(TimeSpan.FromSeconds(0.5)),
                           delegate(object sender, EventArgs e)
                           {
-                              SetLocation(component, original_location[ButtonSelected]);
-                              animateButton(component, original_location[ButtonSelected], new Duration(TimeSpan.FromSeconds(2.0)),
+                              SetLocation(component, selectedLoc);
+                              animateButton(component, selectedLoc, new Duration(TimeSpan.FromSeconds(2.0)),
                                             delegate(object sender2, EventArgs e2)
                                             {
                                                 animationInProgress = false;
@@ -560,7 +594,9 @@ namespace KinectMenu
                 if (!animationInProgress)
                 {
                     Location loc = original_location[component];
-                    Location zoomedLoc = new Location(loc.Left - 50, loc.Top - 50, loc.Width + 100, loc.Height + 100);
+                    double zoomFactor = 1.5;
+                    Location zoomedLoc = new Location(loc.Left - (loc.Width * (zoomFactor - 1.0) / 2), loc.Top - (loc.Height * (zoomFactor - 1.0) / 2),
+                                                      loc.Width * zoomFactor, loc.Height * zoomFactor);
                     component.SetValue(Canvas.ZIndexProperty, 1);
                     animateButton(component, zoomedLoc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, zoomedLoc); });
                 }
