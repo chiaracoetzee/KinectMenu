@@ -99,12 +99,14 @@ namespace KinectMenu
                         parent_menu_map[canvas_by_name[submenu_name]] = canvas;
                     }
 
-                    Uri contentUri = new Uri("/" + button.Name + ".jpg", UriKind.Relative);
-                    StreamResourceInfo resourceInfo = Application.GetContentStream(contentUri);
-                    if (resourceInfo != null)
+                    Uri contentUriJpg = new Uri("/" + button.Name + ".jpg", UriKind.Relative);
+                    StreamResourceInfo resourceInfoJpg = Application.GetContentStream(contentUriJpg);
+                    Uri contentUriPng = new Uri("/" + button.Name + ".png", UriKind.Relative);
+                    StreamResourceInfo resourceInfoPng = Application.GetContentStream(contentUriPng);
+                    if (resourceInfoJpg != null || resourceInfoPng != null)
                     {
                         Image image = new Image();
-                        image.Source = new BitmapImage(contentUri);
+                        image.Source = new BitmapImage(resourceInfoJpg != null ? contentUriJpg : contentUriPng);
                         button.Content = image;
                     }
 
@@ -114,8 +116,8 @@ namespace KinectMenu
                         Grid contentGrid = new Grid();
                         Image backgroundImage = new Image();
                         backgroundImage.Source = new BitmapImage(new Uri("/NoteBackground.png", UriKind.Relative));
-                        backgroundImage.SetValue(LeftProperty, 0.0);
-                        backgroundImage.SetValue(TopProperty, 0.0);
+                        // backgroundImage.SetValue(LeftProperty, 0.0);
+                        // backgroundImage.SetValue(TopProperty, 0.0);
                         contentGrid.Children.Add(backgroundImage);
 
                         Label label = new Label();
@@ -130,6 +132,11 @@ namespace KinectMenu
                     }
                 }
             }
+
+            Image mainBackgroundImage = new Image();
+            mainBackgroundImage.Source = new BitmapImage(new Uri("/background.jpg", UriKind.Relative));
+            mainBackgroundImage.SetValue(Canvas.ZIndexProperty, -1);
+            MainCanvas.Children.Add(mainBackgroundImage);
 
             MainCanvas.Visibility = Visibility.Visible;
             this.active_menu.Visibility = Visibility.Visible;
@@ -567,8 +574,13 @@ namespace KinectMenu
         {
             component.SetValue(Canvas.ZIndexProperty, 1);
             animationInProgress = true;
-            Location selectedLoc = original_location[ButtonSelected];
-            selectedLoc.Width = selectedLoc.Height / component.Height * component.Width; // Maintain aspect ratio
+
+            double zoomFactor = 2;
+            Location selectedLoc;
+            selectedLoc.Width = original_location[component].Width * zoomFactor;
+            selectedLoc.Height = original_location[component].Height * zoomFactor;
+            selectedLoc.Left = this.Width / 2 - selectedLoc.Width / 2;
+            selectedLoc.Top = this.Height / 2 - selectedLoc.Height / 2;
             animateButton(component, selectedLoc, new Duration(TimeSpan.FromSeconds(0.5)),
                           delegate(object sender, EventArgs e)
                           {
