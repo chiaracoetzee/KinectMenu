@@ -1,9 +1,7 @@
 ﻿// Kinect skeletal tracking
 // for CS260 hw2 with Derrick
 // Author: peggychi
-// Latest Update: 09/17/2011
-
-// this is a test for git
+// Latest Update: 09/21/2011
 
 using System;
 using System.Collections.Generic;
@@ -26,8 +24,18 @@ using Microsoft.Research.Kinect.Nui;
 using System.Windows.Threading;
 using Coding4Fun.Kinect.Wpf;
 
+
+
 namespace KinectMenu
 {
+    public static class DateTimeExtensions
+    {
+        public static long GetTimestamp(this DateTime value)
+        {
+            return Convert.ToInt64(value.ToString("yyyyMMddHHmmssff"));
+        }
+    }
+
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
@@ -64,6 +72,8 @@ namespace KinectMenu
                 nui.VideoFrameReady += new EventHandler<ImageFrameReadyEventArgs>(nui_ColorFrameReady);
                 // event handler when skeleton is ready
                 nui.SkeletonFrameReady += new EventHandler<SkeletonFrameReadyEventArgs>(nui_SkeletonFrameReady);
+                // timestamps
+                resetSwipeDetection();
             }
         }
 
@@ -105,7 +115,7 @@ namespace KinectMenu
                 MaxDeviationRadius = 0.04f
             };
             nui.SkeletonEngine.SmoothParameters = parameters;
-                
+            
             nuiInitialized = true;
             return true;
         }
@@ -146,18 +156,16 @@ namespace KinectMenu
 
         // *************************** for Kinect event actions *************************** //
 
-        DispatcherTimer timer;
-        int focus_time = 0; // user holds an item
-        const int click_time = 2; // hold an item for 2 seconds to select
-        Button focus_component = null;
-
         // process the joint information (currently right hand only)
         private void ui_detection(Joint joint)
         {
             // scale to the UI window size
             joint = joint.ScaleTo(this.window_width, this.window_height, .5f, .5f);
-            // currently sets the mouse position same as user's right hand deteced by Kinect
-            NativeMethods.SetCursorPos(Convert.ToInt32(joint.Position.X), Convert.ToInt32(joint.Position.Y));
+            int handX = Convert.ToInt32(joint.Position.X), handY = Convert.ToInt32(joint.Position.Y);
+            // set the mouse position same as user's right hand deteced by Kinect
+            NativeMethods.SetCursorPos(handX, handY);
+            // detect swipe
+            detectSwipe(new Point(handX, handY));
         }
 
         private partial class NativeMethods
@@ -167,7 +175,15 @@ namespace KinectMenu
             public static extern bool SetCursorPos(int X, int Y);
         }
 
-        // timer for hold and select
+        // ********************************* //
+        //   hold and select using a timer   //
+        // ********************************* //
+
+        DispatcherTimer timer;
+        int focus_time = 0; // user holds an item
+        const int click_time = 2; // hold an item for 2 seconds to select
+        Button focus_component = null;
+
         private void restartTimer()
         {
             timer = new DispatcherTimer();
@@ -194,6 +210,57 @@ namespace KinectMenu
             focus_time = 0;
             timer.Stop();
         }
+
+        // ********************************* //
+        //           swipe detection         //
+        // ********************************* //
+
+        long last_threshold_time;
+        long last_detected_time;
+        static int Threshold_detection = 20; // swipe within 0.2s
+        static double x_swipe_distance = 0.4, y_swipe_distance = 0.3;
+        Point last_threshold_position;
+        // Queue<Point> mousePath = new Queue<Point>();
+        
+        private void resetSwipeDetection()
+        {
+            // mousePath = new Queue<Point>(); // refresh mouse path
+            last_detected_time = getCurrentTimestamp();
+            last_threshold_time = last_detected_time;
+        }
+        
+        private void detectSwipe(Point currentHand)
+        {
+            long timeNow = getCurrentTimestamp();
+            if (timeNow - last_detected_time > Threshold_detection)
+            {
+                // user hasn't moved for 1s, reset
+                resetSwipeDetection();
+                last_threshold_position = currentHand;
+            }
+            // push to the mouse path
+            // mousePath.Enqueue(currentHand);
+            if (timeNow - last_threshold_time > Threshold_detection)
+            {
+                // see if it's a swipt action: from right to left
+                if (last_threshold_position.X - currentHand.X >= window_width * x_swipe_distance
+                    && Math.Abs(last_threshold_position.Y - currentHand.Y) <= window_height * y_swipe_distance)
+                {
+                    openPreviousLayer(game_button_list, main_button_list);
+                    this.textBlock_test.Text = "Swipe! " + Convert.ToString(timeNow);
+                }
+                // update the position
+                resetSwipeDetection();
+                last_threshold_position = currentHand;
+            }
+            last_detected_time = timeNow;
+        }
+
+        private long getCurrentTimestamp()
+        {
+            return DateTime.Now.GetTimestamp();
+        }
+
 
         // *************************** navigation interactions *************************** //
 
