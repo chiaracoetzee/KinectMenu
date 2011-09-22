@@ -6,8 +6,10 @@
         Height="1024" Width="1280" Loaded="Window_Loaded" Closed="Window_Closed" Topmost="False" VerticalAlignment="Center" HorizontalAlignment="Center">
     <Grid Name="LayoutRoot">
         <Canvas Name="MainCanvas">
-            <Image Name="video" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="1092" Canvas.Top="58" />
-            <TextBlock Canvas.Left="197" Canvas.Top="913" Height="72" Name="textBlock_test" Text="" Width="1023" FontSize="40" TextAlignment="Right" />
+            <Image Name="video" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="1080" Canvas.Top="840" />
+            <Image Name="depthVideo" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="900" Canvas.Top="840" />
+            <TextBlock Canvas.Left="10" Canvas.Top="900" Height="72" Name="textBlock_test" Text="" Width="500" FontSize="40" TextAlignment="Right" />
+            <CheckBox Canvas.Left="780" Canvas.Top="865" Content="Swipe" Height="48" Name="checkBox_swipe" FontSize="28" Width="108" IsChecked="True" Click="checkBox_swipe_Click" />
             <Button Content="Back" FontSize="40" Height="70" Name="ButtonBack" Width="1280" Visibility="Hidden" Background="#FFF2A8A8" Canvas.Left="0" Canvas.Top="0" />
             <Button Content="Selected" FontSize="40" Height="362" Name="ButtonSelected" Width="447" Background="Yellow" Visibility="Hidden" Canvas.Left="430" Canvas.Top="260" />
         </Canvas>

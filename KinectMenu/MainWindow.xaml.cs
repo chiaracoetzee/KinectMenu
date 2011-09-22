@@ -1,6 +1,6 @@
 ﻿// Kinect skeletal tracking
 // for CS260 hw2 with Derrick
-// Author: peggychi
+// Author: peggychi and dcoetzee (at) eecs.berkeley.edu
 // Latest Update: 09/21/2011
 
 using System;
@@ -27,31 +27,28 @@ using System.Windows.Threading;
 using Coding4Fun.Kinect.Wpf;
 
 
-
 namespace KinectMenu
 {
-    public static class DateTimeExtensions
-    {
-        public static long GetTimestamp(this DateTime value)
-        {
-            return Convert.ToInt64(value.ToString("yyyyMMddHHmmssff"));
-        }
-    }
-
     /// <summary>
     /// Interaction logic for MainWindow.xaml
     /// </summary>
+    
+    // user interface
     public partial class MainWindow : Window
     {
         // ** for Kinect component **
         Runtime nui = new Runtime();
         int window_height = 0, window_width = 0;
 
-        // for UI testing
+        // for UI items
         Dictionary<Button, Location> original_location = new Dictionary<Button,Location>();
         Dictionary<Button, Canvas> submenu_map = new Dictionary<Button, Canvas>();
         Dictionary<Canvas, Canvas> parent_menu_map = new Dictionary<Canvas, Canvas>();
         Canvas active_menu;
+
+        // for testing
+        Boolean displayMsg = true;
+        Boolean detectKinectSwipe = true;
 
         public MainWindow()
         {
@@ -62,8 +59,7 @@ namespace KinectMenu
             // set mouse cursor icon as hand
             this.Cursor = Cursors.Hand;
             
-            // for UI testing
-
+            // for UI
             this.active_menu = RootMenu;
             ButtonBack.Visibility = Visibility.Hidden;
             ButtonSelected.Visibility = Visibility.Hidden;
@@ -113,9 +109,12 @@ namespace KinectMenu
             if ((nui != null) && InitializeNui())
             {
                 // add camera view
-                nui.VideoFrameReady += new EventHandler<ImageFrameReadyEventArgs>(nui_ColorFrameReady);
+                nui.VideoFrameReady += new EventHandler<ImageFrameReadyEventArgs>(nui_monoFrameReady);
                 // event handler when skeleton is ready
                 nui.SkeletonFrameReady += new EventHandler<SkeletonFrameReadyEventArgs>(nui_SkeletonFrameReady);
+                // for depth image
+                nui.DepthFrameReady += new EventHandler<ImageFrameReadyEventArgs>(nui_DepthFrameReady);
+
                 // timestamps
                 resetSwipeDetection();
             }
@@ -138,7 +137,7 @@ namespace KinectMenu
                 return false;
             try
             {
-                nui.Initialize(RuntimeOptions.UseSkeletalTracking | RuntimeOptions.UseColor);
+                nui.Initialize(RuntimeOptions.UseSkeletalTracking | RuntimeOptions.UseDepthAndPlayerIndex | RuntimeOptions.UseColor);
             }
             catch (Exception _Exception)
             {
@@ -149,6 +148,10 @@ namespace KinectMenu
             // for camera view
             nui.VideoStream.Open(ImageStreamType.Video, 2, ImageResolution.Resolution640x480, ImageType.Color);
             
+            // for depth image
+            nui.DepthStream.Open(ImageStreamType.Depth, 2, ImageResolution.Resolution320x240,
+                ImageType.DepthAndPlayerIndex); 
+
             // to reduce jitter
             nui.SkeletonEngine.TransformSmooth = true;
             var parameters = new TransformSmoothParameters
@@ -174,6 +177,8 @@ namespace KinectMenu
 
         // *************************** Kinect skeleton and color events *************************** //
 
+        Point rightHand, leftHand;
+
         void nui_SkeletonFrameReady(Object sender, SkeletonFrameReadyEventArgs e)
         {
             SkeletonFrame allSkeletons = e.SkeletonFrame;
@@ -184,32 +189,45 @@ namespace KinectMenu
 
             if (skeleton != null)
             {
-                // detect right hand only
-                ui_detection(skeleton.Joints[JointID.HandRight]);
+                // scale to the UI window size
+                rightHand = convertPoint(skeleton.Joints[JointID.HandRight]);
+                leftHand = convertPoint(skeleton.Joints[JointID.HandLeft]);
+
+                ui_detection();
             }
         }
 
-        void nui_ColorFrameReady(object sender, ImageFrameReadyEventArgs e)
+        Point convertPoint(Joint joint)
+        {
+            // scale to the UI window size
+            joint = joint.ScaleTo(this.window_width, this.window_height, .5f, .5f);
+            return new Point(Convert.ToInt32(joint.Position.X), Convert.ToInt32(joint.Position.Y));
+        }
+
+        void nui_monoFrameReady(object sender, ImageFrameReadyEventArgs e)
         {
             // 32-bit per pixel, RGBA image
             PlanarImage Image = e.ImageFrame.Image;
             video.Source = BitmapSource.Create(
-                Image.Width, Image.Height, 96, 96, 
+                Image.Width, Image.Height, 96, 96,
                 PixelFormats.Bgr32, null, Image.Bits, Image.Width * Image.BytesPerPixel);
+        }
+
+        void nui_DepthFrameReady(object sender, ImageFrameReadyEventArgs e)
+        {
+            ui_detection_depth(e.ImageFrame);
         }
 
         // *************************** for Kinect event actions *************************** //
 
         // process the joint information (currently right hand only)
-        private void ui_detection(Joint joint)
+        private void ui_detection()
         {
-            // scale to the UI window size
-            joint = joint.ScaleTo(this.window_width, this.window_height, .5f, .5f);
-            int handX = Convert.ToInt32(joint.Position.X), handY = Convert.ToInt32(joint.Position.Y);
             // set the mouse position same as user's right hand deteced by Kinect
-            NativeMethods.SetCursorPos(handX, handY);
+            NativeMethods.SetCursorPos(Convert.ToInt32(rightHand.X), Convert.ToInt32(rightHand.Y));
+            
             // detect swipe
-            detectSwipe(new Point(handX, handY));
+            if (this.detectKinectSwipe) detectSwipe();
         }
 
         private partial class NativeMethods
@@ -238,8 +256,8 @@ namespace KinectMenu
 
         private void timer_Tick(object sender, EventArgs e)
         {
-            // for UI testing: show focus time
-            this.textBlock_test.Text = "Focus: " + Convert.ToString(focus_time + 1) + " sec";
+            if (displayMsg) // for UI testing: show focus time
+                this.textBlock_test.Text = "Focus: " + Convert.ToString(focus_time + 1) + " sec";
 
             focus_time++;
             if (focus_time >= click_time)
@@ -273,8 +291,9 @@ namespace KinectMenu
             last_threshold_time = last_detected_time;
         }
         
-        private void detectSwipe(Point currentHand)
+        private void detectSwipe()
         {
+            Point currentHand = rightHand;
             long timeNow = getCurrentTimestamp();
             if (timeNow - last_detected_time > Threshold_detection)
             {
@@ -290,8 +309,8 @@ namespace KinectMenu
                 if (last_threshold_position.X - currentHand.X >= window_width * x_swipe_distance
                     && Math.Abs(last_threshold_position.Y - currentHand.Y) <= window_height * y_swipe_distance)
                 {
-                    // openPreviousLayer(game_button_list, main_button_list);
-                    this.textBlock_test.Text = "Swipe! " + Convert.ToString(timeNow);
+                    openPreviousLayer(active_menu, parent_menu_map[active_menu]);
+                    if(displayMsg) this.textBlock_test.Text = "Swipe " + Convert.ToString(timeNow);
                 }
                 // update the position
                 resetSwipeDetection();
@@ -303,6 +322,109 @@ namespace KinectMenu
         private long getCurrentTimestamp()
         {
             return DateTime.Now.GetTimestamp();
+        }
+
+        // ********************************* //
+        //           push detection          //
+        // ********************************* //
+
+        //equal coloring for monochromatic histogram
+        const float MaxDepthDistance = 4000; // max value returned
+        const float MinDepthDistance = 850; // min value returned
+        const float MaxDepthDistanceOffset = MaxDepthDistance - MinDepthDistance;
+
+        private void ui_detection_depth(ImageFrame frame)
+        {
+            if (detectPushByDepth(frame))
+            {
+                openPreviousLayer(active_menu, parent_menu_map[active_menu]);
+                if (displayMsg) this.textBlock_test.Text = "Push to go back";
+            }
+        }
+ 
+        private int GetDistanceWithPlayerIndex(byte firstFrame, byte secondFrame)
+        {
+            //offset by 3 in first byte to get value after player index 
+            int distance = (int)(firstFrame >> 3 | secondFrame << 5);
+            return distance;
+        }
+
+        private static int GetPlayerIndex(byte firstFrame)
+        {
+            //returns 0 = no player, 1 = 1st player, 2 = 2nd player...
+            return (int)firstFrame & 7;
+        }
+
+        public static byte CalculateIntensityFromDepth(int distance)
+        {
+            //formula for calculating monochrome intensity for histogram
+            return (byte)(255 - (255 * Math.Max(distance - MinDepthDistance, 0) / (MaxDepthDistanceOffset)));
+        }
+
+        private Boolean detectPushByDepth(ImageFrame imageFrame)
+        {
+            // Depth data for each pixel
+
+            //if (handDepth(imageFrame, rightHand) && handDepth(imageFrame, leftHand))
+            //    return true;
+
+            // tmp
+            byte[] ColoredBytes = handDepth(imageFrame, rightHand);
+            depthVideo.Source = BitmapSource.Create(
+                imageFrame.Image.Width, imageFrame.Image.Height, 96, 96, PixelFormats.Bgr32,
+                null, ColoredBytes, imageFrame.Image.Width * PixelFormats.Bgr32.BitsPerPixel / 8);
+            return false;
+        }
+
+        int handRegion = 20;
+        private byte[] handDepth(ImageFrame imageFrame, Point p)
+        {
+            int height = imageFrame.Image.Height;
+            int width = imageFrame.Image.Width;
+
+            //Depth data for each pixel
+            Byte[] depthData = imageFrame.Image.Bits;
+
+            //monoFrame contains color information for all pixels in image
+            //Height x Width x 4 (Red, Green, Blue, empty byte)
+            Byte[] monoFrame = new byte[imageFrame.Image.Height * imageFrame.Image.Width * 4];
+
+            var depthIndex = 0;
+            for (var y = 0; y < height; y++)
+            {
+                var heightOffset = y * width;
+
+                for (var x = 0; x < width; x++)
+                {
+                    var index = ((width - x - 1) + heightOffset) * 4;
+
+                    var distance = GetDistanceWithPlayerIndex(depthData[depthIndex], depthData[depthIndex + 1]);
+
+                    if (distance <= 900) // very close
+                    {
+                    }
+                    else if (distance > 900 && distance < 2000) // a bit further away
+                    {
+
+                    }
+                    else if (distance > 2000) // the farthest
+                    {
+
+                    }
+
+                    //Color a player
+                    if (GetPlayerIndex(depthData[depthIndex]) > 0)
+                    {
+                        //we are the farthest
+                        monoFrame[index] = CalculateIntensityFromDepth(distance);
+                    }
+
+                    //jump two bytes at a time
+                    depthIndex += 2;
+                }
+            }
+
+            return monoFrame;
         }
 
         // *************************** helpers *************************** //
@@ -369,8 +491,8 @@ namespace KinectMenu
                 optionSelected(component);
             }
 
-            // for UI testing
-            this.textBlock_test.Text = "";
+            if(displayMsg)
+                this.textBlock_test.Text = "";
         }
 
         private void openRootLayer(Canvas currentMenu, Canvas rootMenu)
@@ -490,5 +612,29 @@ namespace KinectMenu
             storyboard.Begin(button);
 
         }
-    }
+
+        // *************************** for testing *********************************** //
+
+        private void checkBox_swipe_Click(object sender, RoutedEventArgs e)
+        {
+            if (checkBox_swipe.IsChecked == true)
+            {
+                this.detectKinectSwipe = true;
+            }
+            else
+            {
+                this.detectKinectSwipe = false;
+            }
+        }
+
+    } // end of class
+
+    // for Kinect detection: time stamps
+    public static class DateTimeExtensions
+    {
+        public static long GetTimestamp(this DateTime value)
+        {
+            return Convert.ToInt64(value.ToString("yyyyMMddHHmmssff"));
+        }
+    } // end of class
 }
