@@ -268,9 +268,13 @@ namespace KinectMenu
         void nui_DepthFrameReady(object sender, ImageFrameReadyEventArgs e)
         {
             if (!found_depth) found_depth = true;
+            // show hands
             SetEllipsePosition(rightHandEllipse, 
                 Canvas.GetLeft(depthVideo) + rightHand.Position.X * (double)160 / (double)this.window_width,
                 Canvas.GetTop(depthVideo) + rightHand.Position.Y * (double)120 / (double)this.window_height);
+            SetEllipsePosition(leftHandEllipse,
+                Canvas.GetLeft(depthVideo) + leftHand.Position.X * (double)160 / (double)this.window_width,
+                Canvas.GetTop(depthVideo) + leftHand.Position.Y * (double)120 / (double)this.window_height);
             // show depth
             ui_detection_depth(e.ImageFrame);
         }
@@ -281,7 +285,7 @@ namespace KinectMenu
         private void ui_detect_skeleton()
         {
             // detect PULL first
-            // or HOLD  
+            // or HOLD
             if (!detectPullTwoHands() &&
                 Math.Abs(head.Position.Y - rightHand.Position.Y) < 200
                 && Math.Abs(head.Position.Y - leftHand.Position.Y) < 200)
@@ -292,7 +296,18 @@ namespace KinectMenu
             }
             // set the mouse position same as user's right hand deteced by Kinect
             NativeMethods.SetCursorPos(Convert.ToInt32(rightHand.Position.X), Convert.ToInt32(rightHand.Position.Y));
-            
+
+            // hand reach to the top (back area)
+            if (rightHand.Position.Y <= 50)
+            {
+                try
+                {
+                    openPreviousLayer(active_menu, parent_menu_map[active_menu]);
+                }
+                catch (Exception e)
+                {
+                }
+            }
             // detect SWIPE
             if (this.detectKinectSwipe) detectSwipe();
 
