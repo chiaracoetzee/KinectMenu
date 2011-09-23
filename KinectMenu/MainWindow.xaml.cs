@@ -51,6 +51,7 @@ namespace KinectMenu
         // for testing
         Boolean displayMsg = true;
         Boolean detectKinectSwipe = true;
+        Boolean detectKinectPush= true;
 
         public MainWindow()
         {
@@ -142,6 +143,7 @@ namespace KinectMenu
             this.active_menu.Visibility = Visibility.Visible;
         }
 
+        static double mouseScaleX = 1, mouseScaleY = 1;
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // ** for Kinect **
@@ -156,6 +158,9 @@ namespace KinectMenu
 
                 // timestamps
                 resetSwipeDetection();
+                // mouse scale
+                mouseScaleX = (double)320 / (double)this.window_width;
+                mouseScaleY = (double)240 / (double)this.window_height;
             }
         }
 
@@ -174,6 +179,7 @@ namespace KinectMenu
             UninitializeNui();
             if (nui == null)
                 return false;
+            NativeMethods.SetCursorPos(0, 0);
             try
             {
                 nui.Initialize(RuntimeOptions.UseSkeletalTracking | RuntimeOptions.UseDepthAndPlayerIndex | RuntimeOptions.UseColor);
@@ -188,8 +194,7 @@ namespace KinectMenu
             nui.VideoStream.Open(ImageStreamType.Video, 2, ImageResolution.Resolution640x480, ImageType.Color);
             
             // for depth image
-            nui.DepthStream.Open(ImageStreamType.Depth, 2, ImageResolution.Resolution320x240,
-                ImageType.DepthAndPlayerIndex); 
+            nui.DepthStream.Open(ImageStreamType.Depth, 2, ImageResolution.Resolution320x240, ImageType.DepthAndPlayerIndex); 
 
             // to reduce jitter
             nui.SkeletonEngine.TransformSmooth = true;
@@ -216,7 +221,8 @@ namespace KinectMenu
 
         // *************************** Kinect skeleton and color events *************************** //
 
-        Point rightHand, leftHand;
+        static Point rightHand, leftHand;
+        Boolean found_skeleton = false, found_depth = false;
 
         void nui_SkeletonFrameReady(Object sender, SkeletonFrameReadyEventArgs e)
         {
@@ -228,12 +234,14 @@ namespace KinectMenu
 
             if (skeleton != null)
             {
+                found_skeleton = true;
                 // scale to the UI window size
                 rightHand = convertPoint(skeleton.Joints[JointID.HandRight]);
                 leftHand = convertPoint(skeleton.Joints[JointID.HandLeft]);
-
-                ui_detection();
+                // analyze skeleton
+                if(found_depth) ui_detect_skeleton();
             }
+            else found_skeleton = false;
         }
 
         Point convertPoint(Joint joint)
@@ -254,13 +262,19 @@ namespace KinectMenu
 
         void nui_DepthFrameReady(object sender, ImageFrameReadyEventArgs e)
         {
+            if (!found_depth) found_depth = true;
+            SetEllipsePosition(rightHandEllipse, 
+                Canvas.GetLeft(depthVideo) + rightHand.X * (double)160 / (double)this.window_width,
+                Canvas.GetTop(depthVideo) + rightHand.Y * (double)120 / (double)this.window_height);
+
+            // analyze depth
             ui_detection_depth(e.ImageFrame);
         }
 
         // *************************** for Kinect event actions *************************** //
 
         // process the joint information (currently right hand only)
-        private void ui_detection()
+        private void ui_detect_skeleton()
         {
             // set the mouse position same as user's right hand deteced by Kinect
             NativeMethods.SetCursorPos(Convert.ToInt32(rightHand.X), Convert.ToInt32(rightHand.Y));
@@ -367,20 +381,30 @@ namespace KinectMenu
         //           push detection          //
         // ********************************* //
 
-        //equal coloring for monochromatic histogram
-        const float MaxDepthDistance = 4000; // max value returned
-        const float MinDepthDistance = 850; // min value returned
-        const float MaxDepthDistanceOffset = MaxDepthDistance - MinDepthDistance;
+        long last_detected_push_time = 0;
 
         private void ui_detection_depth(ImageFrame frame)
         {
-            if (detectPushByDepth(frame))
+            byte[] depthImage = depthMap(frame);
+
+            // detect push action
+            if (getCurrentTimestamp() - last_detected_push_time > 100)
             {
-                openPreviousLayer(active_menu, parent_menu_map[active_menu]);
-                if (displayMsg) this.textBlock_test.Text = "Push to go back";
+                if (detectKinectPush && found_skeleton && detectPushByDepth())
+                {
+                    //openPreviousLayer(active_menu, parent_menu_map[active_menu]);
+                    if (displayMsg) this.textBlock_test.Text = "Push to go back";
+                }
+                else if (displayMsg) this.textBlock_test.Text = "";
+                last_detected_push_time = getCurrentTimestamp();
             }
+
+            // show the depth image
+            depthVideo.Source = BitmapSource.Create(
+                frame.Image.Width, frame.Image.Height, 96, 96, PixelFormats.Bgr32,
+                null, depthImage, frame.Image.Width * PixelFormats.Bgr32.BitsPerPixel / 8);
         }
- 
+
         private int GetDistanceWithPlayerIndex(byte firstFrame, byte secondFrame)
         {
             //offset by 3 in first byte to get value after player index 
@@ -394,29 +418,18 @@ namespace KinectMenu
             return (int)firstFrame & 7;
         }
 
+        //equal coloring for monochromatic histogram
+        const float MaxDepthDistance = 4000; // max value returned
+        const float MinDepthDistance = 850; // min value returned
+        const float MaxDepthDistanceOffset = MaxDepthDistance - MinDepthDistance;
+        
         public static byte CalculateIntensityFromDepth(int distance)
         {
             //formula for calculating monochrome intensity for histogram
             return (byte)(255 - (255 * Math.Max(distance - MinDepthDistance, 0) / (MaxDepthDistanceOffset)));
         }
 
-        private Boolean detectPushByDepth(ImageFrame imageFrame)
-        {
-            // Depth data for each pixel
-
-            //if (handDepth(imageFrame, rightHand) && handDepth(imageFrame, leftHand))
-            //    return true;
-
-            // tmp
-            byte[] ColoredBytes = handDepth(imageFrame, rightHand);
-            depthVideo.Source = BitmapSource.Create(
-                imageFrame.Image.Width, imageFrame.Image.Height, 96, 96, PixelFormats.Bgr32,
-                null, ColoredBytes, imageFrame.Image.Width * PixelFormats.Bgr32.BitsPerPixel / 8);
-            return false;
-        }
-
-        int handRegion = 20;
-        private byte[] handDepth(ImageFrame imageFrame, Point p)
+        private byte[] depthMap(ImageFrame imageFrame)
         {
             int height = imageFrame.Image.Height;
             int width = imageFrame.Image.Width;
@@ -426,7 +439,10 @@ namespace KinectMenu
 
             //monoFrame contains color information for all pixels in image
             //Height x Width x 4 (Red, Green, Blue, empty byte)
-            Byte[] monoFrame = new byte[imageFrame.Image.Height * imageFrame.Image.Width * 4];
+            Byte[] monoFrame = new byte[imageFrame.Image.Height * imageFrame.Image.Width *4];
+            lastDepthDistance = depthDistance;
+            lastDepthRegionInfo = depthRegionInfo;
+            depthRegionInfo = new int[3] {0,0,0};
 
             var depthIndex = 0;
             for (var y = 0; y < height; y++)
@@ -435,27 +451,18 @@ namespace KinectMenu
 
                 for (var x = 0; x < width; x++)
                 {
-                    var index = ((width - x - 1) + heightOffset) * 4;
-
+                    var index = (x + heightOffset) * 4;
                     var distance = GetDistanceWithPlayerIndex(depthData[depthIndex], depthData[depthIndex + 1]);
 
-                    if (distance <= 900) // very close
+                    writeDepthInfo(distance, x, y, rightHand.X * mouseScaleX, rightHand.Y * mouseScaleY);
+                    
+                    if (GetPlayerIndex(depthData[depthIndex]) > 0) // Show a player
                     {
-                    }
-                    else if (distance > 900 && distance < 2000) // a bit further away
-                    {
-
-                    }
-                    else if (distance > 2000) // the farthest
-                    {
-
-                    }
-
-                    //Color a player
-                    if (GetPlayerIndex(depthData[depthIndex]) > 0)
-                    {
-                        //we are the farthest
-                        monoFrame[index] = CalculateIntensityFromDepth(distance);
+                        //equal coloring for monochromatic histogram
+                        var intensity = CalculateIntensityFromDepth(distance);
+                        monoFrame[index + 0] = intensity; // BlueIndex
+                        monoFrame[index + 1] = intensity; // GreenIndex
+                        monoFrame[index + 2] = intensity; // RedIndex
                     }
 
                     //jump two bytes at a time
@@ -464,6 +471,38 @@ namespace KinectMenu
             }
 
             return monoFrame;
+        }
+
+        static int[,] depthDistance = new int[320, 240], lastDepthDistance = depthDistance;
+        static int[] lastDepthRegionInfo, depthRegionInfo;
+        static void writeDepthInfo(int distance, int x, int y, double hand_x, double hand_y)
+        {
+            if (x >= hand_x - handRegion && x <= hand_x + handRegion
+                && y >= hand_y - handRegion && y <= hand_y + handRegion)
+            {
+                if (distance <= 900) // very close
+                    depthRegionInfo[0]++;
+                else if (distance > 900 && distance < 2000) // a bit further away
+                    depthRegionInfo[1]++;
+                else if (distance > 2000) // the farthest
+                    depthRegionInfo[2]++;
+            }
+        }
+
+        const int handRegion = 20;
+        
+        private static Boolean detectPushByDepth()
+        {
+            if (detectHandDepthChange()) // && detectHandDepthChange(leftHand)
+                return true;
+            return false;
+        }
+
+        private static Boolean detectHandDepthChange()
+        {
+            if (lastDepthRegionInfo[0] - depthRegionInfo[1] >= 700)
+                return true;
+            return false;
         }
 
         // *************************** helpers *************************** //
@@ -663,6 +702,12 @@ namespace KinectMenu
 
         // *************************** for testing *********************************** //
 
+        private static void SetEllipsePosition(FrameworkElement ellipse, double X, double Y)
+        {
+            Canvas.SetLeft(ellipse, X);
+            Canvas.SetTop(ellipse, Y);
+        }
+
         private void checkBox_swipe_Click(object sender, RoutedEventArgs e)
         {
             if (checkBox_swipe.IsChecked == true)
@@ -672,6 +717,18 @@ namespace KinectMenu
             else
             {
                 this.detectKinectSwipe = false;
+            }
+        }
+
+        private void checkBox_push_Click(object sender, RoutedEventArgs e)
+        {
+            if (this.checkBox_push.IsChecked == true)
+            {
+                this.detectKinectPush = true;
+            }
+            else
+            {
+                this.detectKinectPush = false;
             }
         }
 
