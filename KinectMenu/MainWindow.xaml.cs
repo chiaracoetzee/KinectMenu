@@ -602,8 +602,8 @@ namespace KinectMenu
                 if (submenu_map.ContainsKey(component))
                 { // Opens submenu
                     animationInProgress = true;
-                    component.SetValue(Canvas.ZIndexProperty, 1);
-                    animateButton(component, original_location[ButtonBack], new Duration(TimeSpan.FromSeconds(0.5)),
+                    component.SetValue(Canvas.ZIndexProperty, 10);
+                    animateElement(component, original_location[ButtonBack], new Duration(TimeSpan.FromSeconds(0.5)),
                                   delegate(object sender, EventArgs e)
                                   {
                                       animationInProgress = false;
@@ -653,22 +653,55 @@ namespace KinectMenu
 
         private void openPreviousLayer(Canvas currentMenu, Canvas previousMenu)
         {
-            // hide current layer and show previous layer
-            currentMenu.Visibility = Visibility.Hidden;
+            previousMenu.SetValue(LeftProperty, -this.Width);
+            currentMenu.SetValue(LeftProperty, 0.0);
             previousMenu.Visibility = Visibility.Visible;
+            animationInProgress = true;
 
-            if (previousMenu == RootMenu)
+            this.RegisterName(previousMenu.Name, previousMenu);
+            this.RegisterName(currentMenu.Name, currentMenu);
+
+            DoubleAnimation leftAnimPrevious = new DoubleAnimation(0, new Duration(TimeSpan.FromSeconds(1.0)));
+            Storyboard.SetTargetProperty(leftAnimPrevious, new PropertyPath(Window.LeftProperty));
+            Storyboard storyboard = new Storyboard();
+            leftAnimPrevious.FillBehavior = FillBehavior.Stop;
+            Storyboard.SetTargetName(leftAnimPrevious, previousMenu.Name);
+            storyboard.Children.Add(leftAnimPrevious);
+
+            DoubleAnimation leftAnimCurrent = new DoubleAnimation(this.Width, new Duration(TimeSpan.FromSeconds(1.0)));
+            Storyboard.SetTargetProperty(leftAnimCurrent, new PropertyPath(Window.LeftProperty));
+            leftAnimCurrent.FillBehavior = FillBehavior.Stop;
+            Storyboard.SetTargetName(leftAnimCurrent, currentMenu.Name);
+            storyboard.Children.Add(leftAnimCurrent);
+            
+            leftAnimPrevious.Completed += delegate(object sender, EventArgs e)
             {
-                // hide back area
-                this.ButtonBack.Visibility = Visibility.Hidden;
-            }
-            active_menu = previousMenu;
+                storyboard.Stop();
+                animationInProgress = false;
+                previousMenu.SetValue(LeftProperty, 0.0);
+                currentMenu.Visibility = Visibility.Hidden;
+                currentMenu.SetValue(LeftProperty, 0.0);
+
+                if (previousMenu == RootMenu)
+                {
+                    // hide back area
+                    this.ButtonBack.Visibility = Visibility.Hidden;
+                }
+                active_menu = previousMenu;
+            };
+            storyboard.Begin(previousMenu);
         }
 
         private void optionSelected(Button component)
         {
-            component.SetValue(Canvas.ZIndexProperty, 1);
+            component.SetValue(Canvas.ZIndexProperty, 10);
             animationInProgress = true;
+
+            Rectangle rectangle = new Rectangle();
+            SetLocation(rectangle, new Location(0.0, 0.0, this.Width, this.Height));
+            rectangle.Fill = new SolidColorBrush(Color.FromArgb(0x80, 0xff, 0xff, 0xff));
+            rectangle.SetValue(Canvas.ZIndexProperty, 1);
+            active_menu.Children.Add(rectangle);
 
             double zoomFactor = 2;
             Location selectedLoc;
@@ -676,13 +709,14 @@ namespace KinectMenu
             selectedLoc.Height = original_location[component].Height * zoomFactor;
             selectedLoc.Left = this.Width / 2 - selectedLoc.Width / 2;
             selectedLoc.Top = this.Height / 2 - selectedLoc.Height / 2;
-            animateButton(component, selectedLoc, new Duration(TimeSpan.FromSeconds(0.5)),
+            animateElement(component, selectedLoc, new Duration(TimeSpan.FromSeconds(0.5)),
                           delegate(object sender, EventArgs e)
                           {
                               SetLocation(component, selectedLoc);
-                              animateButton(component, selectedLoc, new Duration(TimeSpan.FromSeconds(2.0)),
+                              animateElement(component, selectedLoc, new Duration(TimeSpan.FromSeconds(2.0)),
                                             delegate(object sender2, EventArgs e2)
                                             {
+                                                active_menu.Children.Remove(rectangle);
                                                 animationInProgress = false;
                                                 openRootLayer(active_menu, RootMenu);
                                                 SetLocation(component, original_location[component]);
@@ -704,8 +738,8 @@ namespace KinectMenu
                     double zoomFactor = 1.5;
                     Location zoomedLoc = new Location(loc.Left - (loc.Width * (zoomFactor - 1.0) / 2), loc.Top - (loc.Height * (zoomFactor - 1.0) / 2),
                                                       loc.Width * zoomFactor, loc.Height * zoomFactor);
-                    component.SetValue(Canvas.ZIndexProperty, 1);
-                    animateButton(component, zoomedLoc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, zoomedLoc); });
+                    component.SetValue(Canvas.ZIndexProperty, 10);
+                    animateElement(component, zoomedLoc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, zoomedLoc); });
                 }
             }
         }
@@ -718,15 +752,15 @@ namespace KinectMenu
             {
                 Location loc = original_location[component];
                 component.SetValue(Canvas.ZIndexProperty, 0);
-                animateButton(component, loc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, loc); });
+                animateElement(component, loc, new Duration(TimeSpan.FromSeconds(0.25)), delegate(object sender, EventArgs e) { SetLocation(component, loc); });
             }
         }
 
         // *************************** animations *********************************** //
 
-        private void animateButton(Button button, Location loc, Duration duration, EventHandler onCompleted)
+        private void animateElement(FrameworkElement element, Location loc, Duration duration, EventHandler onCompleted)
         {
-            this.RegisterName(button.Name, button);
+            this.RegisterName(element.Name, element);
 
             DoubleAnimation leftAnim = new DoubleAnimation(loc.Left, duration);
             DoubleAnimation topAnim = new DoubleAnimation(loc.Top, duration);
@@ -741,7 +775,7 @@ namespace KinectMenu
             foreach (DoubleAnimation anim in new DoubleAnimation[] { leftAnim, topAnim, widthAnim, heightAnim })
             {
                 anim.FillBehavior = FillBehavior.Stop;
-                Storyboard.SetTargetName(anim, button.Name);
+                Storyboard.SetTargetName(anim, element.Name);
                 storyboard.Children.Add(anim);
             }
             leftAnim.Completed += delegate(object sender, EventArgs e)
@@ -752,7 +786,7 @@ namespace KinectMenu
             {
                 leftAnim.Completed += onCompleted;
             }
-            storyboard.Begin(button);
+            storyboard.Begin(element);
 
         }
 

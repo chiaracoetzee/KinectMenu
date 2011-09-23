@@ -4,7 +4,7 @@
         Title="Kinect Menu" 
         WindowStartupLocation="CenterScreen"
         Height="1024" Width="1280" Loaded="Window_Loaded" Closed="Window_Closed" Topmost="False" VerticalAlignment="Center" HorizontalAlignment="Center">
-    <Grid Name="LayoutRoot">
+    <Canvas Name="LayoutRoot">
         <Canvas Name="MainCanvas">
             <Image Name="video" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="1080" Canvas.Top="840" />
             <Image Name="depthVideo" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="900" Canvas.Top="840" />
@@ -74,5 +74,5 @@
             <Button Canvas.Left="384" Canvas.Top="516" Content="Twitter" FontSize="28" Height="200" Name="ButtonAppItem2" Width="200" />
             <Button Canvas.Left="728" Canvas.Top="516" Content="Yelp" FontSize="28" Height="200" Name="ButtonAppItem3" Width="200" />
         </Canvas>
-    </Grid>
+    </Canvas>
 </Window>
