@@ -1,7 +1,7 @@
 ﻿// Kinect skeletal tracking
 // for CS260 hw2 with Derrick
 // Author: peggychi and dcoetzee (at) eecs.berkeley.edu
-// Latest Update: 09/22/2011
+// Latest Update: 09/23/2011
 
 using System;
 using System.Collections.Generic;
@@ -222,7 +222,7 @@ namespace KinectMenu
         // *************************** Kinect skeleton and color events *************************** //
 
         static Joint rightHand, leftHand, head;
-        Boolean found_skeleton = false, found_depth = false;
+        Boolean found_depth = false;
 
         void nui_SkeletonFrameReady(Object sender, SkeletonFrameReadyEventArgs e)
         {
@@ -234,7 +234,6 @@ namespace KinectMenu
 
             if (skeleton != null)
             {
-                found_skeleton = true;
                 // scale to the UI window size
                 rightHand = scaleJoint(skeleton.Joints[JointID.HandRight]);
                 leftHand = scaleJoint(skeleton.Joints[JointID.HandLeft]);
@@ -242,7 +241,6 @@ namespace KinectMenu
                 // analyze skeleton
                 if(found_depth) ui_detect_skeleton();
             }
-            else found_skeleton = false;
         }
 
         private Joint scaleJoint(Joint joint)
@@ -284,8 +282,7 @@ namespace KinectMenu
         // process the joint information (currently right hand only)
         private void ui_detect_skeleton()
         {
-            // detect PULL first
-            // or HOLD
+            // detect PULL first, then detect HOLD
             if (!detectPullTwoHands() &&
                 Math.Abs(head.Position.Y - rightHand.Position.Y) < 200
                 && Math.Abs(head.Position.Y - leftHand.Position.Y) < 200)
@@ -294,9 +291,7 @@ namespace KinectMenu
                 NativeMethods.SetCursorPos(0, 0);
                 return;
             }
-            // set the mouse position same as user's right hand deteced by Kinect
-            NativeMethods.SetCursorPos(Convert.ToInt32(rightHand.Position.X), Convert.ToInt32(rightHand.Position.Y));
-
+            
             // hand reach to the top (back area)
             if (rightHand.Position.Y <= 50)
             {
@@ -308,6 +303,10 @@ namespace KinectMenu
                 {
                 }
             }
+
+            // set the mouse position same as user's right hand deteced by Kinect
+            NativeMethods.SetCursorPos(Convert.ToInt32(rightHand.Position.X), Convert.ToInt32(rightHand.Position.Y));
+
             // detect SWIPE
             if (this.detectKinectSwipe) detectSwipe();
 
