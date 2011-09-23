@@ -49,9 +49,9 @@ namespace KinectMenu
         Canvas active_menu;
 
         // for testing
-        Boolean displayMsg = true;
+        Boolean displayMsg = false;
         Boolean detectKinectSwipe = true;
-        Boolean detectKinectPush= true;
+        Boolean detectKinectPush = true;
 
         public MainWindow()
         {
@@ -221,7 +221,7 @@ namespace KinectMenu
 
         // *************************** Kinect skeleton and color events *************************** //
 
-        static Joint rightHand, leftHand;
+        static Joint rightHand, leftHand, head;
         Boolean found_skeleton = false, found_depth = false;
 
         void nui_SkeletonFrameReady(Object sender, SkeletonFrameReadyEventArgs e)
@@ -238,6 +238,7 @@ namespace KinectMenu
                 // scale to the UI window size
                 rightHand = scaleJoint(skeleton.Joints[JointID.HandRight]);
                 leftHand = scaleJoint(skeleton.Joints[JointID.HandLeft]);
+                head = scaleJoint(skeleton.Joints[JointID.Head]);
                 // analyze skeleton
                 if(found_depth) ui_detect_skeleton();
             }
@@ -279,13 +280,23 @@ namespace KinectMenu
         // process the joint information (currently right hand only)
         private void ui_detect_skeleton()
         {
+            // detect PULL first
+            // or HOLD  
+            if (!detectPullTwoHands() &&
+                Math.Abs(head.Position.Y - rightHand.Position.Y) < 200
+                && Math.Abs(head.Position.Y - leftHand.Position.Y) < 200)
+            {
+                if(displayMsg) this.textBlock_test.Text = "Hold";
+                NativeMethods.SetCursorPos(0, 0);
+                return;
+            }
             // set the mouse position same as user's right hand deteced by Kinect
             NativeMethods.SetCursorPos(Convert.ToInt32(rightHand.Position.X), Convert.ToInt32(rightHand.Position.Y));
             
-            // detect swipe
+            // detect SWIPE
             if (this.detectKinectSwipe) detectSwipe();
 
-            // detect push
+            // detect PUSH
             if (this.detectKinectPush) detectPush();
         }
 
@@ -302,7 +313,7 @@ namespace KinectMenu
 
         DispatcherTimer timer;
         int focus_time = 0; // user holds an item
-        const int click_time = 2; // hold an item for 2 seconds to select
+        const int click_time = 3; // hold an item for 2 seconds to select
         Button focus_component = null;
 
         private void restartTimer()
@@ -368,8 +379,14 @@ namespace KinectMenu
                 if (last_threshold_position.X - currentHand.X >= window_width * x_swipe_distance
                     && Math.Abs(last_threshold_position.Y - currentHand.Y) <= window_height * y_swipe_distance)
                 {
-                    openPreviousLayer(active_menu, parent_menu_map[active_menu]);
-                    if(displayMsg) this.textBlock_test.Text = "Swipe";
+                    try
+                    {
+                        openPreviousLayer(active_menu, parent_menu_map[active_menu]);
+                        if (displayMsg) this.textBlock_test.Text = "Swipe";
+                    }
+                    catch (Exception e)
+                    {
+                    }
                 }
                 // update the position
                 resetSwipeDetection();
@@ -402,13 +419,45 @@ namespace KinectMenu
                 }
                 else if (timeNow - last_push_threshold_time > Threshold_push_detection)
                 {
-                    if (last_push_depth - rightHand.Position.Z >= 0.3)
+                    if (last_push_depth - rightHand.Position.Z >= 0.4)
                     {
                         component_click(focus_component);
+                        resetTimer();
                         if (this.displayMsg) this.textBlock_test.Text = "Push";
                         last_push_threshold_time = timeNow;
                         return true;
                     }
+                }
+            }
+            return false;
+        }
+
+        // ********************************* //
+        //           pull detection          //
+        // ********************************* //
+
+        long last_pull_threshold_time = 0;
+        double last_pull_depth_right = 0, last_pull_depth_left = 0;
+        static int Threshold_pull_detection = 20;
+
+        private Boolean detectPullTwoHands()
+        {
+            long timeNow = getCurrentTimestamp();
+            if (last_pull_depth_right == 0 || last_pull_depth_left == 0)
+            {
+                last_pull_depth_right = rightHand.Position.Z;
+                last_pull_depth_left = leftHand.Position.Z;
+                last_pull_threshold_time = timeNow;
+            }
+            else if (timeNow - last_pull_threshold_time > Threshold_pull_detection)
+            {
+                // this.textBlock_test.Text = (rightHand.Position.Z - last_pull_depth_right) + ", " + (leftHand.Position.Z - last_pull_depth_left);
+                if (rightHand.Position.Z - last_pull_depth_right >= 0.2
+                    && leftHand.Position.Z - last_pull_depth_left >= 0.2)
+                {
+                    if (this.displayMsg) this.textBlock_test.Text = "Pull with two hands";
+                    last_pull_threshold_time = timeNow;
+                    return true;
                 }
             }
             return false;
@@ -534,27 +583,36 @@ namespace KinectMenu
             {
                 return;
             }
-            if (submenu_map.ContainsKey(component)) { // Opens submenu
-                animationInProgress = true;
-                component.SetValue(Canvas.ZIndexProperty, 1);
-                animateButton(component, original_location[ButtonBack], new Duration(TimeSpan.FromSeconds(0.5)),
-                              delegate(object sender, EventArgs e)
+            try
+            {
+                if (submenu_map.ContainsKey(component))
+                { // Opens submenu
+                    animationInProgress = true;
+                    component.SetValue(Canvas.ZIndexProperty, 1);
+                    animateButton(component, original_location[ButtonBack], new Duration(TimeSpan.FromSeconds(0.5)),
+                                  delegate(object sender, EventArgs e)
+                                  {
+                                      animationInProgress = false;
+                                      openNextLayer(active_menu, submenu_map[component]);
+                                      SetLocation(component, original_location[component]);
+                                      component.SetValue(Canvas.ZIndexProperty, 0);
+                                  });
+                }
+                else if (component == ButtonBack)
+                { // back button
+                    openPreviousLayer(active_menu, parent_menu_map[active_menu]);
+                }
+                else
                 {
-                    animationInProgress = false;
-                    openNextLayer(active_menu, submenu_map[component]);
-                    SetLocation(component, original_location[component]);
-                    component.SetValue(Canvas.ZIndexProperty, 0);
-                });
+                    optionSelected(component);
+                }
             }
-            else if (component == ButtonBack) { // back button
-                openPreviousLayer(active_menu, parent_menu_map[active_menu]);
-            }
-            else {
-                optionSelected(component);
+            catch (Exception e)
+            {
             }
 
             if(displayMsg)
-                this.textBlock_test.Text = "";
+                this.textBlock_test.Text = "Select";
         }
 
         private void openRootLayer(Canvas currentMenu, Canvas rootMenu)
