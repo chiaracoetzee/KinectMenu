@@ -9,6 +9,7 @@
             <Image Name="video" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="1080" Canvas.Top="840" />
             <Image Name="depthVideo" Opacity="1" Margin="0,18,19,0" HorizontalAlignment="Right" Width="160" Height="120" VerticalAlignment="Top" Canvas.Left="900" Canvas.Top="840" />
             <Ellipse Canvas.Left="-10" Canvas.Top="-10" Height="20" Width="20" Name="rightHandEllipse" Stroke="Black" Fill="Orange" />
+            <Ellipse Canvas.Left="-10" Canvas.Top="-10" Height="20" Width="20" Name="leftHandEllipse" Stroke="Black" Fill="Yellow" />
             <TextBlock Canvas.Left="10" Canvas.Top="900" Height="72" Name="textBlock_test" Text="" Width="500" FontSize="40" TextAlignment="Right" />
             <CheckBox Canvas.Left="780" Canvas.Top="865" Content="Swipe" Height="48" Name="checkBox_swipe" FontSize="28" Width="108" IsChecked="True" Click="checkBox_swipe_Click" />
             <CheckBox Canvas.Left="780" Canvas.Top="920" Content="Push" Height="48" Name="checkBox_push" FontSize="28" Width="108" IsChecked="True" Click="checkBox_push_Click" />
